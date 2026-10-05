@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Gap Note 카드뉴스 제작기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F7F9FC; --rule:#DCE4F0; --ink:#1E2B45; --soft:#5A6782;
+  --red:#C0473C; --green:#2F7A57; --white:#fff;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:"IBM Plex Sans KR",system-ui,sans-serif; color:var(--ink);
+  background:var(--paper);
+  background-image:repeating-linear-gradient(to bottom,transparent 0 31px,var(--rule) 31px 32px);
+  line-height:1.55;
+}
+.wrap{max-width:1280px;margin:0 auto;padding:28px 20px 80px;position:relative}
+.wrap::before{content:"";position:fixed;top:0;bottom:0;left:max(12px,calc(50% - 652px));width:2px;background:var(--red);opacity:.35;pointer-events:none}
+header{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:24px;padding-left:18px}
+header h1{font-family:"Gowun Batang",serif;font-size:40px;margin:0;line-height:1.1;display:flex;align-items:center;gap:12px}
+.mark{display:inline-flex;gap:6px;align-items:flex-end}
+.mark i{display:block;width:12px;height:26px}
+.mark i:first-child{background:var(--red);height:18px}
+.mark i:last-child{background:var(--green)}
+header p{margin:0 0 4px;color:var(--soft)}
+.grid{display:grid;grid-template-columns:380px 1fr;gap:28px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--white);border:1.5px solid var(--ink);padding:22px;position:sticky;top:16px}
+@media (max-width:900px){.panel{position:static}}
+.panel h2{font-family:"Gowun Batang",serif;font-size:21px;margin:0 0 14px}
+.field{margin-bottom:16px}
+.field > label,.field > .lbl{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+input[type=text],input[type=password],select,textarea{
+  width:100%;font:inherit;font-size:15px;color:var(--ink);background:#fff;
+  border:1px solid #B9C3D6;padding:9px 11px;border-radius:4px}
+textarea{resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid #8FB3E8;outline-offset:1px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font:inherit;font-size:13px;border:1px solid #B9C3D6;background:var(--paper);color:var(--ink);padding:4px 10px;border-radius:999px;cursor:pointer}
+.chip:hover{border-color:var(--ink)}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{padding:9px 6px;text-align:center;font-size:14px;cursor:pointer;background:#fff}
+.seg label + input + label{border-left:1px solid var(--ink)}
+.seg.three{grid-template-columns:1fr 1fr 1fr}
+.seg input:checked + label{background:var(--ink);color:#fff}
+.seg input:focus-visible + label{outline:3px solid #8FB3E8;outline-offset:-3px}
+.hint{font-size:12.5px;color:var(--soft);margin-top:5px}
+.hint a{color:var(--ink)}
+details.keys{border-top:1px dashed #B9C3D6;padding-top:12px;margin-top:4px}
+details.keys summary{cursor:pointer;font-weight:600;font-size:14px;margin-bottom:10px}
+.btn{font:inherit;font-weight:700;border:1.5px solid var(--ink);background:#fff;color:var(--ink);padding:9px 14px;border-radius:4px;cursor:pointer}
+.btn:hover{background:var(--paper)}
+.btn.primary{background:var(--ink);color:#fff;width:100%;padding:14px;font-size:17px}
+.btn.primary:hover{background:#2C3D60}
+.btn:disabled{opacity:.5;cursor:wait}
+#status{margin-top:12px;font-size:14px;min-height:22px}
+#status.err{color:var(--red);font-weight:600}
+.bar{height:6px;background:var(--rule);margin-top:8px;display:none}
+.bar span{display:block;height:100%;width:0;background:var(--green);transition:width .3s}
+.empty{border:1.5px dashed #9AA6BD;background:rgba(255,255,255,.7);padding:48px 28px;text-align:center;color:var(--soft)}
+.empty strong{display:block;font-family:"Gowun Batang",serif;font-size:24px;color:var(--ink);margin-bottom:8px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.toolbar h2{font-family:"Gowun Batang",serif;margin:0 auto 0 0;font-size:24px}
+.pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px}
+.page{background:#fff;border:1px solid #B9C3D6;padding:12px}
+.page canvas{width:100%;height:auto;display:block;border:1px solid #E3E8F1}
+.page .pno{font-size:13px;color:var(--soft);margin:10px 0 6px;font-weight:600}
+.page .f{margin-bottom:8px}
+.page .f label{display:block;font-size:12.5px;color:var(--soft);margin-bottom:3px}
+.page textarea{font-size:14px;padding:6px 8px}
+.page details summary{font-size:12.5px;color:var(--soft);cursor:pointer;margin:4px 0 6px}
+.page .acts{display:flex;gap:8px;margin-top:10px}
+.page .acts .btn{flex:1;font-size:14px;padding:8px}
+.caption{margin-top:28px;background:#fff;border:1.5px solid var(--ink);padding:18px}
+.caption h3{font-family:"Gowun Batang",serif;margin:0 0 10px;font-size:20px}
+#results{display:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="mark" aria-hidden="true"><i></i><i></i></span>The Gap Note</h1>
+    <p>주제만 넣으면 글과 그림까지 그려주는 카드뉴스 제작기</p>
+  </header>
+
+  <div class="grid">
+    <aside class="panel" aria-label="만들기 설정">
+      <h2>무엇을 만들까요?</h2>
+
+      <div class="field">
+        <label for="topic">주제</label>
+        <input type="text" id="topic" placeholder="예: 가짜부자 vs 진짜부자">
+        <div class="chips" id="chips"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" type="button" id="newTopics" style="flex:1">새 주제 추천받기</button>
+          <button class="btn" type="button" id="showHist">만든 기록</button>
+        </div>
+        <div class="hint" id="topicHint">고른 분야에 맞춰 아직 안 만든 새 주제를 10개씩 추천해요.</div>
+        <div class="hint" id="histBox" style="display:none;max-height:180px;overflow:auto;background:var(--paper);padding:8px;border:1px solid #DCE4F0"></div>
+      </div>
+
+      <div class="field">
+        <label for="cat">분야</label>
+        <select id="cat">
+          <option>돈·부자 마인드</option>
+          <option>육아·부모</option>
+          <option>인간관계</option>
+          <option>자기계발·습관</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <span class="lbl">형식</span>
+        <div class="seg">
+          <input type="radio" name="fmt" id="fmt-vs" value="vs" checked><label for="fmt-vs">A vs B 비교형</label>
+          <input type="radio" name="fmt" id="fmt-list" value="list"><label for="fmt-list">N가지 리스트형</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="count">본문 장수 (표지·마지막 장 제외)</label>
+        <select id="count">
+          <option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="style">그림 스타일</label>
+        <select id="style">
+          <option value="cartoon" selected>귀여운 만화 캐릭터 (추천)</option>
+          <option value="watercolor">따뜻한 수채화 손그림</option>
+          <option value="pencil">색연필 일러스트</option>
+          <option value="collage">종이 콜라주</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <span class="lbl">글 쓰는 AI</span>
+        <div class="seg three">
+          <input type="radio" name="eng" id="eng-gemini" value="gemini" checked><label for="eng-gemini">무료 Gemini (추천)</label>
+          <input type="radio" name="eng" id="eng-poll" value="poll"><label for="eng-poll">무료 Pollinations</label>
+          <input type="radio" name="eng" id="eng-claude" value="claude"><label for="eng-claude">Claude (유료)</label>
+        </div>
+        <div class="hint">그림은 어느 쪽을 골라도 무료(Pollinations)로 그려요.</div>
+      </div>
+
+      <details class="keys" id="keysBox">
+        <summary>API 키 설정</summary>
+        <div class="field">
+          <label for="geminiKey">Gemini API 키 (무료 Gemini 선택 시 필요)</label>
+          <input type="password" id="geminiKey" placeholder="AIza..." autocomplete="off">
+          <div class="hint"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>에서 구글 계정으로 무료로 만들 수 있어요.</div>
+        </div>
+        <div class="field">
+          <label for="gemModel">Gemini 모델</label>
+          <select id="gemModel">
+            <option value="gemini-flash-latest">Gemini Flash (추천)</option>
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+            <option value="gemini-flash-lite-latest">Gemini Flash-Lite (한도 넉넉)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="claudeKey">Claude API 키 (Claude 선택 시 필요)</label>
+          <input type="password" id="claudeKey" placeholder="sk-ant-..." autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="model">Claude 모델</label>
+          <select id="model">
+            <option value="claude-sonnet-5-5">Sonnet 5.5 (추천)</option>
+            <option value="claude-haiku-4-5-20251001">Haiku 4.5 (더 저렴)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pollKey">Pollinations 키 (선택)</label>
+          <input type="password" id="pollKey" placeholder="없어도 작동해요" autocomplete="off">
+          <div class="hint">넣으면 더 안정적이에요. <a href="https://enter.pollinations.ai" target="_blank" rel="noopener">enter.pollinations.ai</a>에서 무료로 만들 수 있어요.</div>
+        </div>
+        <div class="hint">키는 이 컴퓨터의 브라우저에만 저장돼요.</div>
+      </details>
+
+      <div style="margin-top:18px">
+        <button class="btn primary" id="go">카드뉴스 만들기</button>
+        <div class="bar" id="bar"><span></span></div>
+        <div id="status" role="status" aria-live="polite"></div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="empty" id="empty">
+        <strong>왼쪽에서 주제를 넣고 만들기를 누르세요</strong>
+        표지, 본문, 마지막 장까지 한 번에 만들어져요. 글은 바로 나오고, 그림은 한 장씩 차례로 채워져요.
+      </div>
+
+      <section id="results" aria-label="만든 카드">
+        <div class="toolbar">
+          <h2 id="resTitle">완성된 카드</h2>
+          <button class="btn" id="redrawAll">그림 전부 다시 그리기</button>
+          <button class="btn" id="saveAll">전체 저장 (ZIP)</button>
+        </div>
+        <div class="pages" id="pages"></div>
+        <div class="caption">
+          <h3>캡션과 해시태그</h3>
+          <textarea id="caption" rows="9"></textarea>
+          <div style="margin-top:10px"><button class="btn" id="copyCap">캡션 복사</button></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+/* ============ 기본 설정 ============ */
+const W = 1080, H = 1350;
+const C = { paper:'#F3ECDF', ink:'#2B2420', soft:'#6E6157', red:'#B5443A', green:'#3E7B5A' };
+const STYLES = {
+  cartoon: 'cute expressive cartoon illustration, adorable rounded characters with big sparkling eyes and exaggerated lively facial expressions, dynamic body language, manga emotion effects like sweat drops and little sparkles, clean bold outlines, soft warm pastel colors, cozy Korean webtoon style, characters full of personality and charm',
+  watercolor: 'warm hand-drawn watercolor illustration, soft beige and earthy tones, gentle ink linework, cozy everyday life in Korea, editorial picture-book style',
+  pencil: 'colored pencil illustration on textured paper, warm muted colors, expressive sketchy lines, Korean webtoon inspired characters',
+  collage: 'torn paper collage illustration, layered textured paper cutouts, warm neutral palette, soft shadows, handmade craft look'
+};
+const TOPICS = [
+  '월급날 그냥 쓰는 사람 vs 부자가 될 사람','부자는 절대 안 사는 물건 5가지','20대에 알았으면 좋았을 돈 습관',
+  '아이를 망치는 칭찬 vs 키우는 칭찬','스마트폰 주는 부모 vs 대화하는 부모',
+  '나를 갉아먹는 사람의 특징','성숙한 사람이 싸울 때 하지 않는 말',
+  '잘되는 사람의 아침 vs 안 되는 사람의 아침','조용히 성공하는 사람들의 특징'
+];
+const FIELDS = {
+  cover:[['kicker','표지 위 작은 문구'],['title','제목'],['title_accent','강조 제목 (빨간색)']],
+  vs:[['heading','소제목'],['a_label','A 이름 (빨간색)'],['a_text','A 설명'],['b_label','B 이름 (초록색)'],['b_text','B 설명']],
+  list:[['heading','항목 제목'],['text','설명']],
+  outro:[['question','마지막 질문'],['sub','보조 문장'],['teaser','내일 예고']]
+};
+const SLOTS = { cover:[['image',1080,900]], vs:[['a_image',1024,576],['b_image',1024,576]], list:[['image',1024,704]], outro:[] };
+
+const $ = id => document.getElementById(id);
+const state = { pages:[], imgs:{}, seeds:{}, topic:'', busy:false };
+
+/* ============ 저장된 설정 ============ */
+function store(k,v){ try{ localStorage.setItem('tgn_'+k,v); }catch(e){} }
+function load(k){ try{ return localStorage.getItem('tgn_'+k) || ''; }catch(e){ return ''; } }
+['geminiKey','gemModel','claudeKey','pollKey','model','style','cat','count'].forEach(id=>{
+  const v = load(id); if(v) $(id).value = v;
+  $(id).addEventListener('change',()=>store(id,$(id).value));
+});
+const savedEng = load('eng'); if(savedEng) { const r=document.querySelector(`input[name=eng][value=${savedEng}]`); if(r) r.checked = true; }
+document.querySelectorAll('input[name=eng]').forEach(r=>r.addEventListener('change',()=>{
+  store('eng',r.value);
+  if((r.value==='claude' && !$('claudeKey').value) || (r.value==='gemini' && !$('geminiKey').value)) $('keysBox').open = true;
+}));
+
+/* ============ 주제 추천 + 만든 기록 ============ */
+function getHist(){ try{ return JSON.parse(load('history')||'[]'); }catch(e){ return []; } }
+function addHist(topic,title){ const h=getHist(); h.unshift({topic,title,date:new Date().toISOString().slice(0,10)}); store('history',JSON.stringify(h.slice(0,150))); }
+function renderChips(list){
+  $('chips').innerHTML='';
+  const done=new Set(getHist().map(h=>h.topic));
+  list.forEach(t=>{
+    const b = document.createElement('button'); b.className='chip'; b.type='button';
+    b.textContent = done.has(t) ? '✓ '+t : t;
+    b.onclick=()=>{ $('topic').value=t; if(/ vs /i.test(t)) $('fmt-vs').checked=true; else $('fmt-list').checked=true; };
+    $('chips').appendChild(b);
+  });
+}
+function savedTopics(){ try{ const s=JSON.parse(load('topics')||'null'); return Array.isArray(s)&&s.length?s:null; }catch(e){ return null; } }
+renderChips(savedTopics()||TOPICS);
+
+const ANGLES = ['심리학 연구 결과를 근거로','실제로 있을 법한 일상 장면으로','반전이 있는 시선으로','당장 오늘 따라 할 수 있는 행동 위주로','20~30대 직장인 입장에서','부모 입장에서','10년 뒤의 나를 기준으로','돈보다 태도에 초점을 맞춰','가장 흔한 착각을 깨는 방식으로','성공한 사람들의 공통점으로'];
+const HOOKS = ['호기심(끝까지 넘겨보고 싶게)','지적 허영심(저장하고 싶게)','공감(내 얘기 같게)','경고(나도 이러고 있나 뜨끔하게)','숫자(구체적인 개수·기간)','반전(통념을 뒤집게)'];
+const pick = a => a[Math.floor(Math.random()*a.length)];
+
+async function aiText(prompt){
+  const eng=document.querySelector('input[name=eng]:checked').value;
+  return eng==='claude' ? await callClaude(prompt) : eng==='gemini' ? await callGemini(prompt) : await callPollText(prompt);
+}
+
+$('newTopics').onclick=async()=>{
+  const btn=$('newTopics'); btn.disabled=true; btn.textContent='추천받는 중…';
+  try{
+    const past=getHist().map(h=>h.topic).slice(0,60);
+    const shown=(savedTopics()||TOPICS);
+    const today=new Date(); const month=today.getMonth()+1;
+    const prompt=`인스타그램 자기계발 카드뉴스 계정 "The Gap Note"(잘되는 사람과 아닌 사람의 차이를 보여주는 계정)의 새 주제 10개를 추천해줘.
+분야: ${$('cat').value}
+지금은 ${today.getFullYear()}년 ${month}월이야. 계절, 연말연초, 명절, 취업·이직 시즌 같은 시기 이슈도 2~3개 섞어줘.
+조건:
+- 사람들이 "나도 성장하고 싶다"는 마음에 저장·공유하고 싶은 주제
+- 절반은 "A vs B" 비교형(반드시 " vs "를 넣기), 절반은 "~하는 N가지"·"~의 특징" 리스트형
+- 각 주제 30자 이내, 서로 겹치지 않게
+- 아래 이미 만든 주제·이미 보여준 주제와 비슷한 것은 절대 금지
+이미 만든 주제: ${past.join(' / ')||'없음'}
+이미 보여준 주제: ${shown.join(' / ')}
+JSON만 출력: {"topics":["주제1","주제2",...]}`;
+    const raw=await aiText(prompt);
+    const d=parseJSON(raw);
+    const list=(d.topics||[]).filter(t=>typeof t==='string'&&t.trim()).map(t=>t.trim()).slice(0,10);
+    if(!list.length) throw new Error('추천을 못 받았어요. 한 번 더 눌러 주세요.');
+    store('topics',JSON.stringify(list)); renderChips(list);
+    $('topicHint').textContent='새 주제 10개가 나왔어요. 마음에 안 들면 한 번 더 누르세요.';
+  }catch(e){ $('topicHint').textContent=e.message||String(e); }
+  btn.disabled=false; btn.textContent='새 주제 추천받기';
+};
+
+$('showHist').onclick=()=>{
+  const box=$('histBox');
+  if(box.style.display==='block'){ box.style.display='none'; return; }
+  const h=getHist();
+  box.innerHTML='';
+  if(!h.length){ box.textContent='아직 만든 카드뉴스가 없어요.'; }
+  else h.forEach(x=>{ const d=document.createElement('div'); d.textContent=`${x.date}  ${x.topic} → "${x.title}"`; box.appendChild(d); });
+  box.style.display='block';
+};
+
+function setStatus(msg, err){ const s=$('status'); s.textContent=msg; s.className = err?'err':''; }
+function setBar(p){ const b=$('bar'); b.style.display = p==null?'none':'block'; if(p!=null) b.firstElementChild.style.width = Math.round(p*100)+'%'; }
+
+/* ============ 글 생성 ============ */
+function buildPrompt(topic, cat, fmt, n){
+  const shape = fmt==='vs'
+    ? '{"heading":"이 장의 상황 제목(18자 이내, 번호 금지)","a_label":"아쉬운 쪽 이름(8자 이내)","a_text":"아쉬운 쪽의 구체적 장면+속마음(45자 이내)","a_image":"영어 그림 묘사","b_label":"잘되는 쪽 이름(8자 이내)","b_text":"같은 순간 잘되는 쪽의 작은 행동+속마음(45자 이내)","b_image":"영어 그림 묘사"}'
+    : '{"heading":"항목 제목(18자 이내, 번호 금지)","text":"공감 장면 한 문장 + 작은 깨달음 한 문장(75자 이내)","image":"영어 그림 묘사"}';
+  return `너는 팔로워가 매일 기다리는 인스타그램 카드뉴스 계정 "The Gap Note"(차이를 기록하는 노트)의 메인 작가야.
+계정 컨셉: 잘되는 사람과 아닌 사람의 차이는 거창한 게 아니라 일상의 아주 작은 순간에 있다. 그 순간을 기록한다.
+독자: 열심히 사는데 왠지 제자리 같아서 답답한 20~40대.
+
+주제: ${topic}
+분야: ${cat}
+형식: ${fmt==='vs' ? 'A vs B 비교형. 매 장마다 같은 상황에서 A(아쉬운 쪽)와 B(잘되는 쪽)가 어떻게 다르게 행동하는지 대비한다. A/B 이름은 모든 장에서 같은 짝으로 통일(예: 가짜부자/진짜부자).' : 'N가지 리스트형. 각 장이 하나의 항목.'}
+본문 카드 수: 정확히 ${n}장
+이번 글의 관점: ${pick(ANGLES)}
+이번 표지 후킹 방식: ${pick(HOOKS)}
+예전에 쓴 표지 제목(이것들과 다른 제목·다른 내용으로 쓸 것): ${getHist().map(h=>h.title).filter(Boolean).slice(0,30).join(' / ')||'없음'}
+
+가장 중요한 규칙 — 진정성과 공감:
+1. 사람들이 매일 보고 싶어 하는 건 '정답'이 아니라 '내 얘기 같은 장면'이다. 모든 카드는 누구나 겪어 본 구체적인 순간으로 쓴다.
+   나쁜 예: "충동구매를 하지 않는다" / "시간을 소중히 쓴다" (추상적, 뻔함)
+   좋은 예: "월급날 장바구니 다 결제하고, 3일 뒤 잔고 보며 한숨" / "퇴근하고 누워서 쇼츠 보다 보니 새벽 1시"
+2. 시간, 장소, 물건, 금액, 행동 같은 디테일을 꼭 넣는다. 짧은 속마음을 따옴표로 넣으면 더 좋다(예: "이번 달만 참자").
+3. 아쉬운 쪽을 비웃거나 훈계하지 않는다. "나도 그랬다"는 따뜻한 시선으로 쓴다.
+4. 잘되는 쪽은 거창한 성공이 아니라 오늘 당장 따라 할 수 있는 작은 행동으로 쓴다.
+5. 명언, 뻔한 교훈, "~해야 합니다" 같은 말투는 쓰지 않는다. 문체는 친한 선배가 말해주듯 부드러운 존댓말(~더라고요, ~잖아요).
+6. 표지 제목은 읽자마자 "어? 나 얘기네" 또는 "이건 저장해야겠다" 싶게 쓴다.
+7. 다 쓴 뒤 스스로 다시 읽고, 뻔하거나 추상적인 문장을 구체적인 장면으로 고친 다음 출력한다.
+
+그림 묘사 규칙:
+- 영어로, 그 카드의 순간을 그대로 보여주는 한 장면.
+- 귀여운 한국인 만화 캐릭터가 감정을 과장되게 드러내게 쓴다(표정, 몸짓, 땀방울·반짝이·한숨 김 같은 만화 효과).
+- A와 B 그림은 같은 장소, 같은 캐릭터, 비슷한 구도에서 행동과 표정만 다르게 한다.
+- 글자, 간판, 숫자, 로고, 실존 인물은 넣지 않는다.
+
+아래 JSON만 출력해. 설명이나 코드블록 없이 JSON 하나만.
+{
+ "cover":{"kicker":"표지 위 작은 공감 문구(15자 이내)","title":"제목 첫 줄(13자 이내)","title_accent":"강조할 둘째 줄(13자 이내)","image":"영어 그림 묘사"},
+ "cards":[ ${shape} ],
+ "outro":{"question":"독자가 자기를 돌아보게 하는 질문(22자 이내)","sub":"댓글을 부르는 한 문장(30자 이내, 예: 해당되는 번호를 댓글로 남겨 주세요)","teaser":"내일 올라올 다음 이야기 예고(18자 이내)"},
+ "caption":"인스타 캡션. 첫 줄은 공감 가는 장면 한 줄, 중간에 작가의 짧은 고백이나 경험, 마지막 줄은 '내일도 하나씩 기록할게요' 같은 팔로우 유도. 총 6~9줄, 줄바꿈은 \\n",
+ "hashtags":"#해시태그 10개, 공백으로 구분"
+}`;
+}
+
+async function callClaude(prompt){
+  const key = $('claudeKey').value.trim();
+  if(!key) throw new Error('Claude API 키를 입력하세요. 키가 없으면 "무료 (Pollinations)"를 고르세요.');
+  const r = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({ model:$('model').value, max_tokens:4000, messages:[{role:'user',content:prompt}] })
+  });
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok){
+    const m=(j.error && j.error.message) || String(r.status);
+    if(/credit balance/i.test(m)) throw new Error('Claude 크레딧(잔액)이 부족해요. console.anthropic.com → Billing에서 충전하거나, 글 쓰는 AI를 "무료"로 바꿔 주세요.');
+    if(r.status===401) throw new Error('Claude API 키가 틀렸어요. 키를 다시 복사해서 넣어 주세요.');
+    throw new Error('Claude 오류: ' + m);
+  }
+  return (j.content||[]).map(b=>b.text||'').join('');
+}
+
+async function callGemini(prompt){
+  const key = $('geminiKey').value.trim();
+  if(!key) throw new Error('Gemini API 키를 입력하세요. "API 키 설정"을 열면 무료로 만드는 링크가 있어요.');
+  const models=[$('gemModel').value,'gemini-flash-latest','gemini-2.5-flash','gemini-flash-lite-latest'].filter((m,i,a)=>a.indexOf(m)===i);
+  let last='';
+  for(const m of models){
+    const r = await fetchTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`,{
+      method:'POST', headers:{'content-type':'application/json'},
+      body:JSON.stringify({ contents:[{role:'user',parts:[{text:prompt}]}], generationConfig:{ responseMimeType:'application/json', temperature:1 } })
+    },120000);
+    const j = await r.json().catch(()=>({}));
+    if(r.ok){
+      const t=((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('');
+      if(t) return t; last='빈 응답'; continue;
+    }
+    last=(j.error&&j.error.message)||String(r.status);
+    if(r.status===400 && /API key/i.test(last)) throw new Error('Gemini API 키가 틀렸어요. 키를 다시 복사해서 넣어 주세요.');
+    if(r.status===429) throw new Error('오늘 Gemini 무료 사용량을 다 썼거나 너무 빨리 눌렀어요. 1분 뒤 다시 누르거나, 모델을 Flash-Lite로 바꿔 보세요.');
+    if(r.status!==404) break;
+  }
+  throw new Error('Gemini 오류: '+last);
+}
+
+async function callPollText(prompt){
+  const key = $('pollKey').value.trim();
+  const body = JSON.stringify({ model:'openai', messages:[{role:'system',content:'You output only valid JSON. Write Korean text exactly as instructed.'},{role:'user',content:prompt}] });
+  const gen = { url:'https://gen.pollinations.ai/v1/chat/completions', headers:key?{'content-type':'application/json','Authorization':'Bearer '+key}:{'content-type':'application/json'} };
+  const old = { url:'https://text.pollinations.ai/openai', headers:{'content-type':'application/json'} };
+  const order = key ? [gen, old] : [old, gen];
+  let lastErr = '';
+  for(const t of order){
+    try{
+      const r = await fetchTimeout(t.url,{method:'POST',headers:t.headers,body},120000);
+      if(!r.ok){ lastErr = 'HTTP '+r.status; continue; }
+      const txt = await r.text();
+      try{ const j = JSON.parse(txt); const c = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content; if(c) return c; if(j.cover) return txt; }catch(e){}
+      if(txt.includes('"cover"')) return txt;
+      lastErr = '응답 형식 오류';
+    }catch(e){ lastErr = e.message; }
+  }
+  throw new Error('무료 글 AI가 응답하지 않아요('+lastErr+'). 잠시 후 다시 누르거나 Claude를 골라 보세요.');
+}
+
+function parseJSON(txt){
+  txt = String(txt).replace(/```json|```/g,'');
+  const a = txt.indexOf('{'), b = txt.lastIndexOf('}');
+  if(a<0||b<0) throw new Error('AI가 보낸 글을 읽지 못했어요. 한 번 더 눌러 주세요.');
+  try{ return JSON.parse(txt.slice(a,b+1)); }
+  catch(e){ throw new Error('AI가 보낸 글 형식이 깨졌어요. 한 번 더 눌러 주세요.'); }
+}
+
+/* ============ 그림 생성 (Pollinations, 무료) ============ */
+function fetchTimeout(url, opt, ms){
+  const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), ms);
+  return fetch(url,Object.assign({},opt||{},{signal:ctl.signal})).finally(()=>clearTimeout(t));
+}
+function imageUrls(prompt, w, h, seed){
+  const full = `${prompt}, ${STYLES[$('style').value]}, no text, no letters, no words, no watermark`;
+  const enc = encodeURIComponent(full);
+  const q = `width=${w}&height=${h}&seed=${seed}&nologo=true&model=flux`;
+  const key = $('pollKey').value.trim();
+  const gen = `https://gen.pollinations.ai/image/${enc}?${q}` + (key?`&key=${encodeURIComponent(key)}`:'');
+  const old = `https://image.pollinations.ai/prompt/${enc}?${q}`;
+  return key ? [gen, old] : [old, gen];
+}
+function blobToImage(blob){
+  return new Promise((res,rej)=>{ const u=URL.createObjectURL(blob); const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error('그림 파일 오류')); im.src=u; });
+}
+async function drawPicture(prompt, w, h, seed){
+  for(let round=0; round<2; round++){
+    for(const url of imageUrls(prompt,w,h,seed+round)){
+      try{
+        const r = await fetchTimeout(url,{},150000);
+        if(!r.ok) continue;
+        const blob = await r.blob();
+        if(!blob.type.startsWith('image')) continue;
+        return await blobToImage(blob);
+      }catch(e){}
+    }
+    await new Promise(r=>setTimeout(r,3000));
+  }
+  return null;
+}
+
+/* ============ 캔버스 그리기 ============ */
+let grain = null;
+function grainPattern(ctx){
+  if(!grain){
+    const g = document.createElement('canvas'); g.width=g.height=180; const x=g.getContext('2d');
+    for(let i=0;i<2600;i++){ x.fillStyle=`rgba(90,70,50,${Math.random()*0.07})`; x.fillRect(Math.random()*180,Math.random()*180,1.4,1.4); }
+    grain = g;
+  }
+  return ctx.createPattern(grain,'repeat');
+}
+function base(ctx){
+  ctx.fillStyle=C.paper; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=grainPattern(ctx); ctx.fillRect(0,0,W,H);
+  ctx.textBaseline='top';
+}
+function rr(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function wrap(ctx,text,maxW){
+  const out=[];
+  for(const para of String(text||'').split('\n')){
+    let line='';
+    for(const w of para.split(' ')){
+      const test = line ? line+' '+w : w;
+      if(ctx.measureText(test).width<=maxW){ line=test; continue; }
+      if(line){ out.push(line); line=''; }
+      if(ctx.measureText(w).width<=maxW){ line=w; continue; }
+      let part='';
+      for(const ch of w){ if(ctx.measureText(part+ch).width>maxW){ out.push(part); part=ch; } else part+=ch; }
+      line=part;
+    }
+    if(line) out.push(line);
+  }
+  return out;
+}
+function fit(ctx,text,font,maxW,maxLines,big,small){
+  let lines=[];
+  for(let s=big; s>=small; s-=2){ ctx.font=font(s); lines=wrap(ctx,text,maxW); if(lines.length<=maxLines) return {lines,size:s}; }
+  ctx.font=font(small); return {lines:wrap(ctx,text,maxW).slice(0,maxLines), size:small};
+}
+function drawLines(ctx,lines,x,y,lh){ lines.forEach((l,i)=>ctx.fillText(l,x,y+i*lh)); return y+lines.length*lh; }
+function coverImg(ctx,img,x,y,w,h){
+  if(!img){
+    ctx.fillStyle='#E6DACA'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle=C.soft; ctx.font='500 30px "IBM Plex Sans KR"'; ctx.textAlign='center';
+    ctx.fillText('그림 그리는 중…',x+w/2,y+h/2-15); ctx.textAlign='left'; return;
+  }
+  const r=Math.max(w/img.width,h/img.height), sw=w/r, sh=h/r;
+  ctx.drawImage(img,(img.width-sw)/2,(img.height-sh)/2,sw,sh,x,y,w,h);
+}
+function brand(ctx,cx,y,size){
+  ctx.font=`700 ${size}px "Gowun Batang"`;
+  const tw=ctx.measureText('The Gap Note').width, bw=size*0.28, gap=size*0.18;
+  const total=bw*2+gap+size*0.35+tw; const x=cx-total/2;
+  ctx.fillStyle=C.red; ctx.fillRect(x,y+size*0.35,bw,size*0.62);
+  ctx.fillStyle=C.green; ctx.fillRect(x+bw+gap,y+size*0.12,bw,size*0.85);
+  ctx.fillStyle=C.ink; ctx.textAlign='left'; ctx.fillText('The Gap Note',x+bw*2+gap+size*0.35,y);
+}
+function pageNo(ctx,i,total){ ctx.font='500 24px "IBM Plex Sans KR"'; ctx.fillStyle=C.soft; ctx.textAlign='right'; ctx.fillText(`${i+1} / ${total}`,W-48,H-58); ctx.textAlign='left'; }
+const SERIF = s=>`800 ${s}px "Nanum Myeongjo"`;
+
+function renderCover(ctx,d,img){
+  base(ctx); ctx.textAlign='center';
+  let y=96;
+  if(d.kicker){ ctx.font='700 38px "Nanum Myeongjo"'; ctx.fillStyle=C.soft; ctx.fillText(d.kicker,W/2,y); y+=72; }
+  let f=fit(ctx,d.title,SERIF,960,2,100,62); ctx.fillStyle=C.ink; y=drawLines(ctx,f.lines,W/2,y,f.size*1.22);
+  if(d.title_accent){ f=fit(ctx,d.title_accent,SERIF,960,2,100,62); ctx.fillStyle=C.red; y=drawLines(ctx,f.lines,W/2,y,f.size*1.22); }
+  const top=y+30;
+  coverImg(ctx,img,0,top,W,H-top);
+  const g=ctx.createLinearGradient(0,top,0,top+110); g.addColorStop(0,C.paper); g.addColorStop(1,'rgba(243,236,223,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,top,W,110);
+  ctx.fillStyle='rgba(243,236,223,.92)'; rr(ctx,W/2-150,H-84,300,56,28); ctx.fill();
+  brand(ctx,W/2,H-74,32);
+}
+function renderVS(ctx,d,imgA,imgB,i,total){
+  base(ctx); ctx.textAlign='center';
+  const f=fit(ctx,d.heading,SERIF,960,2,66,46); ctx.fillStyle=C.ink;
+  const headEnd=drawLines(ctx,f.lines,W/2,64,f.size*1.22);
+  ctx.textAlign='left';
+  const top=headEnd+30, bottom=H-92, gap=22, ph=(bottom-top-gap)/2, px=48, pw=W-96;
+  [[d.a_label,d.a_text,imgA,C.red,top],[d.b_label,d.b_text,imgB,C.green,top+ph+gap]].forEach(([lab,txt,img,col,py])=>{
+    ctx.save(); rr(ctx,px,py,pw,ph,26); ctx.clip(); coverImg(ctx,img,px,py,pw,ph); ctx.restore();
+    ctx.textAlign='left';
+    ctx.font='700 34px "IBM Plex Sans KR"'; const lw=ctx.measureText(lab||'').width;
+    ctx.fillStyle=col; rr(ctx,px+24,py+24,lw+48,60,30); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.fillText(lab||'',px+48,py+34);
+    const bx=px+24, bw=pw-48;
+    const t=fit(ctx,txt,s=>`600 ${s}px "IBM Plex Sans KR"`,bw-56,3,36,28); const lh=t.size*1.45;
+    const bh=t.lines.length*lh+40, by=py+ph-24-bh;
+    ctx.fillStyle='rgba(255,252,246,.94)'; rr(ctx,bx,by,bw,bh,20); ctx.fill();
+    ctx.fillStyle=col; ctx.fillRect(bx,by+18,6,bh-36);
+    ctx.fillStyle=C.ink; ctx.font=`600 ${t.size}px "IBM Plex Sans KR"`; drawLines(ctx,t.lines,bx+30,by+20,lh);
+  });
+  brand(ctx,W/2,H-68,28); pageNo(ctx,i,total);
+}
+function renderList(ctx,d,img,n,i,total){
+  base(ctx); ctx.textAlign='left';
+  ctx.font='800 120px "Nanum Myeongjo"'; ctx.fillStyle=C.red; ctx.fillText(String(n).padStart(2,'0'),64,54);
+  let f=fit(ctx,d.heading,SERIF,950,2,62,44); ctx.fillStyle=C.ink;
+  let y=drawLines(ctx,f.lines,66,196,f.size*1.25)+14;
+  f=fit(ctx,d.text,s=>`500 ${s}px "IBM Plex Sans KR"`,950,4,38,30); ctx.fillStyle=C.soft; ctx.font=`500 ${f.size}px "IBM Plex Sans KR"`;
+  y=drawLines(ctx,f.lines,66,y,f.size*1.55)+30;
+  ctx.save(); rr(ctx,48,y,W-96,H-92-y,26); ctx.clip(); coverImg(ctx,img,48,y,W-96,H-92-y); ctx.restore();
+  brand(ctx,W/2,H-68,28); pageNo(ctx,i,total);
+}
+function renderOutro(ctx,d,i,total){
+  base(ctx); ctx.textAlign='center';
+  ctx.fillStyle=C.red; ctx.fillRect(W/2-46,330,30,90);
+  ctx.fillStyle=C.green; ctx.fillRect(W/2+16,300,30,120);
+  let f=fit(ctx,d.question,SERIF,900,3,84,56); ctx.fillStyle=C.ink;
+  let y=drawLines(ctx,f.lines,W/2,480,f.size*1.25)+36;
+  f=fit(ctx,d.sub,s=>`500 ${s}px "IBM Plex Sans KR"`,880,2,40,32); ctx.fillStyle=C.soft; ctx.font=`500 ${f.size}px "IBM Plex Sans KR"`;
+  drawLines(ctx,f.lines,W/2,y,f.size*1.5);
+  ctx.strokeStyle='#CDBFAA'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(W/2-200,H-255); ctx.lineTo(W/2+200,H-255); ctx.stroke();
+  ctx.textAlign='center';
+  if(d.teaser){
+    ctx.font='700 32px "IBM Plex Sans KR"'; const tt='내일은  '+String(d.teaser).replace(/^\s*내일은\s*[:·\-]?\s*/,''); const tw=ctx.measureText(tt).width;
+    ctx.fillStyle='#E9DFCF'; rr(ctx,W/2-tw/2-30,H-360,tw+60,64,32); ctx.fill();
+    ctx.fillStyle=C.ink; ctx.fillText(tt,W/2,H-347);
+  }
+  ctx.font='500 30px "IBM Plex Sans KR"'; ctx.fillStyle=C.soft; ctx.fillText('팔로우하고 매일 하나씩 차이를 모아 보세요',W/2,H-215);
+  brand(ctx,W/2,H-150,52); pageNo(ctx,i,total);
+}
+
+function render(pi){
+  const p=state.pages[pi], ctx=p.canvas.getContext('2d'), total=state.pages.length;
+  const im=f=>state.imgs[pi+':'+f]||null;
+  if(p.type==='cover') renderCover(ctx,p.d,im('image'));
+  else if(p.type==='vs') renderVS(ctx,p.d,im('a_image'),im('b_image'),pi,total);
+  else if(p.type==='list') renderList(ctx,p.d,im('image'),p.n,pi,total);
+  else renderOutro(ctx,p.d,pi,total);
+}
+
+/* ============ 화면 만들기 ============ */
+const NAMES={cover:'표지',vs:'비교',list:'항목',outro:'마지막 장'};
+function makeField(pi,k,lab,rows,onInput,val){
+  const f=document.createElement('div'); f.className='f'; const id=`f${pi}_${k}`;
+  const l=document.createElement('label'); l.htmlFor=id; l.textContent=lab;
+  const ta=document.createElement('textarea'); ta.id=id; ta.rows=rows; ta.value=val||'';
+  ta.addEventListener('input',()=>onInput(ta.value));
+  f.appendChild(l); f.appendChild(ta); return f;
+}
+function buildPages(){
+  const box=$('pages'); box.innerHTML='';
+  state.pages.forEach((p,pi)=>{
+    const el=document.createElement('article'); el.className='page';
+    const cv=document.createElement('canvas'); cv.width=W; cv.height=H; p.canvas=cv; el.appendChild(cv);
+    const no=document.createElement('div'); no.className='pno'; no.textContent=`${pi+1}장 · ${NAMES[p.type]}`; el.appendChild(no);
+    FIELDS[p.type].forEach(([k,lab])=>el.appendChild(makeField(pi,k,lab,2,v=>{ p.d[k]=v; render(pi); },p.d[k])));
+    if(SLOTS[p.type].length){
+      const det=document.createElement('details'); const sm=document.createElement('summary'); sm.textContent='그림 설명 고치기 (영어)'; det.appendChild(sm);
+      SLOTS[p.type].forEach(([k])=>{
+        const lab = k==='a_image'?'A 그림':k==='b_image'?'B 그림':'그림';
+        det.appendChild(makeField(pi,k,lab,3,v=>{ p.d[k]=v; },p.d[k]));
+      });
+      el.appendChild(det);
+    }
+    const acts=document.createElement('div'); acts.className='acts';
+    if(SLOTS[p.type].length){
+      const rb=document.createElement('button'); rb.className='btn'; rb.textContent='그림 다시 그리기';
+      rb.onclick=async()=>{ rb.disabled=true; rb.textContent='그리는 중…'; const ok=await paintPage(pi,true); rb.disabled=false; rb.textContent= ok?'그림 다시 그리기':'실패, 다시 누르기'; };
+      acts.appendChild(rb);
+    }
+    const sb=document.createElement('button'); sb.className='btn'; sb.textContent='이 장 저장';
+    sb.onclick=()=>savePNG(pi); acts.appendChild(sb);
+    el.appendChild(acts);
+    box.appendChild(el);
+    render(pi);
+  });
+}
+
+async function paintPage(pi,fresh){
+  const p=state.pages[pi]; let ok=true;
+  for(const [k,w,h] of SLOTS[p.type]){
+    const key=pi+':'+k;
+    if(!fresh && state.imgs[key]) continue;
+    state.seeds[key]=Math.floor(Math.random()*1e6);
+    const img=await drawPicture(p.d[k]||'a Korean person thinking quietly at a desk',w,h,state.seeds[key]);
+    if(img){ state.imgs[key]=img; } else ok=false;
+    render(pi);
+  }
+  return ok;
+}
+
+async function paintAll(fresh){
+  const list=state.pages.map((p,i)=>i).filter(i=>SLOTS[state.pages[i].type].length);
+  let done=0, fails=0; setBar(0);
+  for(const pi of list){
+    setStatus(`그림 그리는 중… (${done+1}/${list.length}장) 한 장에 10~40초쯤 걸려요.`);
+    if(!(await paintPage(pi,fresh))) fails++;
+    done++; setBar(done/list.length);
+  }
+  setBar(null);
+  if(fails) setStatus(`${fails}장은 그림을 못 받았어요. 해당 장의 "그림 다시 그리기"를 눌러 주세요.`,true);
+  else setStatus('완성! 글을 고치면 카드에 바로 반영돼요.');
+}
+
+/* ============ 실행 ============ */
+async function fontsReady(){
+  try{ await Promise.all(['800 60px "Nanum Myeongjo"','700 40px "Nanum Myeongjo"','700 40px "Gowun Batang"','500 30px "IBM Plex Sans KR"','600 30px "IBM Plex Sans KR"','700 30px "IBM Plex Sans KR"'].map(f=>document.fonts.load(f,'가나다Gap'))); }catch(e){}
+}
+
+$('go').onclick=async()=>{
+  if(state.busy) return;
+  const topic=$('topic').value.trim();
+  if(!topic){ setStatus('주제를 입력하거나 아래 추천 주제를 눌러 주세요.',true); $('topic').focus(); return; }
+  const fmt=document.querySelector('input[name=fmt]:checked').value;
+  const eng=document.querySelector('input[name=eng]:checked').value;
+  const n=+$('count').value;
+  state.busy=true; $('go').disabled=true;
+  try{
+    setStatus('글 쓰는 중… (10~40초)'); setBar(0.05);
+    const prompt=buildPrompt(topic,$('cat').value,fmt,n);
+    const raw = await aiText(prompt);
+    const d=parseJSON(raw);
+    if(d.cover) addHist(topic, [d.cover.title,d.cover.title_accent].filter(Boolean).join(' '));
+    renderChips(savedTopics()||TOPICS);
+    const cards=(Array.isArray(d.cards)?d.cards:[]).slice(0,n);
+    cards.forEach(c=>{ if(c.heading) c.heading=String(c.heading).replace(/^\s*(\d+|[①-⑩])\s*[\).:\-]?\s*/,''); });
+    if(!d.cover||!cards.length) throw new Error('AI가 카드를 덜 만들었어요. 한 번 더 눌러 주세요.');
+    state.topic=topic; state.imgs={}; state.seeds={};
+    state.pages=[{type:'cover',d:d.cover}]
+      .concat(cards.map((c,i)=>({type:fmt,d:c,n:i+1})))
+      .concat([{type:'outro',d:d.outro||{question:'당신은 어느 쪽인가요?',sub:'댓글로 알려 주세요'}}]);
+    $('caption').value=String(d.caption||'').replace(/\\n/g,'\n')+'\n\n'+(d.hashtags||'');
+    await fontsReady();
+    $('empty').style.display='none'; $('results').style.display='block';
+    $('resTitle').textContent=topic;
+    buildPages();
+    await paintAll(false);
+  }catch(e){
+    setBar(null); setStatus(e.message||String(e),true);
+  }finally{ state.busy=false; $('go').disabled=false; }
+};
+
+$('redrawAll').onclick=async()=>{
+  if(state.busy||!state.pages.length) return;
+  state.busy=true; $('go').disabled=true; $('redrawAll').disabled=true;
+  await paintAll(true);
+  state.busy=false; $('go').disabled=false; $('redrawAll').disabled=false;
+};
+
+/* ============ 저장 ============ */
+function slug(){ return (state.topic||'card').replace(/[^\p{L}\p{N}]+/gu,'_').slice(0,30); }
+function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); }
+function savePNG(pi){ state.pages[pi].canvas.toBlob(b=>download(b,`thegapnote_${slug()}_${String(pi+1).padStart(2,'0')}.png`),'image/png'); }
+function loadZip(){
+  return new Promise((res,rej)=>{ if(window.JSZip) return res(); const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+}
+$('saveAll').onclick=async()=>{
+  try{
+    await loadZip(); const zip=new JSZip();
+    for(let i=0;i<state.pages.length;i++){
+      const b=await new Promise(r=>state.pages[i].canvas.toBlob(r,'image/png'));
+      zip.file(`thegapnote_${slug()}_${String(i+1).padStart(2,'0')}.png`,b);
+    }
+    zip.file('caption.txt',$('caption').value);
+    download(await zip.generateAsync({type:'blob'}),`thegapnote_${slug()}.zip`);
+  }catch(e){
+    for(let i=0;i<state.pages.length;i++){ savePNG(i); await new Promise(r=>setTimeout(r,500)); }
+  }
+};
+$('copyCap').onclick=async()=>{
+  const t=$('caption'); try{ await navigator.clipboard.writeText(t.value); }catch(e){ t.select(); document.execCommand('copy'); }
+  $('copyCap').textContent='복사됨'; setTimeout(()=>$('copyCap').textContent='캡션 복사',1500);
+};
+</script>
+</body>
+</html>
