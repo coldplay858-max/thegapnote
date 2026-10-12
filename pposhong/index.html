@@ -372,6 +372,23 @@ $('playBtn').onclick=async()=>{if(playing){stopPlay();return}
   if(hasSong){audio.currentTime=startSec();try{await audio.play()}catch(e){}}
   playing=true;t0=performance.now();$('playBtn').textContent='■ 멈추기';loop()};
 
+/* 크롬 MP4 길이 버그 고치기: 헤더에 진짜 길이를 적어 넣음 */
+function fixMp4Duration(buf,sec){try{
+  const u=new Uint8Array(buf),dv=new DataView(buf),typ=o=>String.fromCharCode(u[o+4],u[o+5],u[o+6],u[o+7]);
+  const kids=(s,e)=>{const r=[];let o=s;while(o+8<=e){let sz=dv.getUint32(o);if(sz<8)break;r.push({o,sz,t:typ(o)});o+=sz}return r};
+  const top=kids(0,u.length),moov=top.find(b=>b.t==='moov');if(!moov)return buf;
+  const mk=kids(moov.o+8,moov.o+moov.sz),mvhd=mk.find(b=>b.t==='mvhd');if(!mvhd)return buf;
+  const v=u[mvhd.o+8],mts=dv.getUint32(mvhd.o+(v?28:20)),mdur=Math.round(sec*mts);
+  if(v)dv.setBigUint64(mvhd.o+32,BigInt(mdur));else dv.setUint32(mvhd.o+24,mdur);
+  for(const tr of mk.filter(b=>b.t==='trak')){const tk=kids(tr.o+8,tr.o+tr.sz);
+    const th=tk.find(b=>b.t==='tkhd');if(th){const tv=u[th.o+8];if(tv)dv.setBigUint64(th.o+36,BigInt(mdur));else dv.setUint32(th.o+28,mdur)}
+    const md=tk.find(b=>b.t==='mdia');if(md){const mh=kids(md.o+8,md.o+md.sz).find(b=>b.t==='mdhd');if(mh){const hv=u[mh.o+8],ts=dv.getUint32(mh.o+(hv?28:20)),dd=Math.round(sec*ts);if(hv)dv.setBigUint64(mh.o+32,BigInt(dd));else dv.setUint32(mh.o+24,dd)}}}
+  const mvex=mk.find(b=>b.t==='mvex');
+  if(mvex&&!kids(mvex.o+8,mvex.o+mvex.sz).some(b=>b.t==='mehd')){
+    const out=new Uint8Array(u.length+16),od=new DataView(out.buffer),ins=mvex.o+8;
+    out.set(u.subarray(0,ins),0);od.setUint32(ins,16);out.set([109,101,104,100],ins+4);od.setUint32(ins+8,0);od.setUint32(ins+12,mdur);out.set(u.subarray(ins),ins+16);
+    od.setUint32(moov.o,moov.sz+16);od.setUint32(mvex.o,mvex.sz+16);return out.buffer}
+  return buf}catch(e){return buf}}
 /* 영상 */
 let actx=null,srcNode=null,dest=null,videoBlob=null;
 function pickMime(withA){return (withA?['video/mp4;codecs=avc1,mp4a.40.2','video/mp4;codecs=avc1,opus','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus']:[]).concat(['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm']).find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||''}
@@ -392,7 +409,8 @@ $('recBtn').onclick=async()=>{
   rec.stop();audio.pause();await done;
   if(useAudio)stream.getAudioTracks().forEach(tr=>stream.removeTrack(tr));
   const type=(rec.mimeType||mime||'video/webm').split(';')[0],ext=type.includes('mp4')?'mp4':'webm';
-  videoBlob=new Blob(chunks,{type});const v=$('out');v.src=URL.createObjectURL(videoBlob);v.hidden=false;v.play().catch(()=>{});
+  videoBlob=new Blob(chunks,{type});
+  if(ext==='mp4'){try{videoBlob=new Blob([fixMp4Duration(await videoBlob.arrayBuffer(),d)],{type})}catch(e){}}const v=$('out');v.src=URL.createObjectURL(videoBlob);v.hidden=false;v.play().catch(()=>{});
   const file=new File([videoBlob],`pposhong_${Date.now()}.${ext}`,{type});
   $('saveBtn').hidden=false;$('saveBtn').onclick=()=>{try{const a=document.createElement('a');a.href=URL.createObjectURL(videoBlob);a.download=file.name;a.rel='noopener';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),1000)}catch(e){}
     ri.innerHTML='저장을 시작했어요. 알림창이나 갤러리의 <b>Download</b> 폴더를 확인하세요.<br>저장이 안 되면 ① <b>인스타로 공유</b> 버튼을 누르거나 ② 위 영상을 <b>길게 눌러</b> "동영상 다운로드"를 누르세요.';ri.className='status'};
