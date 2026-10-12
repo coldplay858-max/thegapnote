@@ -73,6 +73,12 @@ video{max-height:420px;max-width:100%;border-radius:12px;display:block;margin:0 
   <button class="tap" id="tapBtn">톡! 박자마다 누르기</button>
   </div></details>
   <div class="status" id="tapInfo">노래를 녹음하거나 고르면 빠르기(BPM)를 자동으로 찾아요.</div>
+  <div id="fixBox" hidden style="display:flex;flex-direction:column;gap:8px">
+    <p class="hint"><b>미리보기에서 박자가 안 맞으면</b> 아래 버튼으로 고쳐보세요. 누를 때마다 바로 미리보기에 반영돼요.</p>
+    <div class="btns"><button id="bpmHalf">춤이 너무 빨라요 (÷2)</button><button id="bpmDouble">춤이 너무 느려요 (×2)</button></div>
+    <div class="btns"><button id="offMinus">◀ 춤을 조금 일찍</button><button id="offPlus">춤을 조금 늦게 ▶</button></div>
+    <div class="btns"><button id="offHalf">엇박이에요 (반 박자 밀기)</button></div>
+  </div>
 </section>
 
 <section>
@@ -211,7 +217,7 @@ async function useSong(blob,fromMic){audio.src=URL.createObjectURL(blob);hasSong
     $('startSec').value=Math.max(0,Math.floor(s*10)/10);store('startSec',$('startSec').value)}
   if($('mouth').value==='auto')analyze();
   if(!songBuf){info('이 파일에서 소리를 못 읽었어요. 다른 파일을 고르거나 "마이크로 노래 녹음"을 써주세요.','err');return}
-  const bt=await detectBeat();makeChoreo();
+  const bt=await detectBeat();makeChoreo();showFix();
   if(bt){info(`${fromMic?'녹음 완료. ':''}빠르기 ${bt} BPM을 찾아서 안무를 짰어요. ▶ 미리보기로 확인하세요.`,'ok');return}
   info((fromMic?`녹음 완료 (${songBuf?Math.round(songBuf.duration):'?'}초). 노래 시작 위치를 자동으로 맞췄어요. `:'노래를 불러왔어요. ')+'이제 "노래 틀고 박자 찍기"를 누르고 박자마다 톡! 누르세요.','ok')}
 $('song').onchange=e=>{const f=e.target.files[0];if(f)useSong(f,false)};
@@ -260,6 +266,16 @@ const mEnd=()=>{if(mStart===null)return;const t=relNow();if(t>mStart)mouthIv.pus
 function mouthState(t){const m=$('mouth').value;if(m==='off')return null;
   if(m==='auto'){if(!env)return null;const i=Math.floor(t*30);return i>=0&&i<env.length?env[i]:false}
   return mouthIv.some(([a,b])=>t>=a&&t<b)}
+
+/* 박자 고치기 */
+function showFix(){const b=$('fixBox');b.hidden=false;b.style.display='flex'}
+function fixMsg(){info(`빠르기 ${$('bpm').value} BPM · 박자 위치 ${beatOff.toFixed(2)}초로 바꿨어요. 미리보기로 확인하세요.`,'ok');if(val('mode')==='auto')makeChoreo();redraw()}
+$('bpmHalf').onclick=()=>{$('bpm').value=Math.round(+$('bpm').value/2);store('bpm',$('bpm').value);fixMsg()};
+$('bpmDouble').onclick=()=>{$('bpm').value=Math.round(+$('bpm').value*2);store('bpm',$('bpm').value);fixMsg()};
+$('offMinus').onclick=()=>{beatOff-=0.05;fixMsg()};
+$('offPlus').onclick=()=>{beatOff+=0.05;fixMsg()};
+$('offHalf').onclick=()=>{beatOff+=30/(+$('bpm').value||120);fixMsg()};
+document.getElementById('fixBox').style.display='none';
 
 /* 자동 박자 찾기 + 자동 안무 */
 let auto={segs:[],energy:[],seed:1,drop:-1};
@@ -378,8 +394,9 @@ $('recBtn').onclick=async()=>{
   const type=(rec.mimeType||mime||'video/webm').split(';')[0],ext=type.includes('mp4')?'mp4':'webm';
   videoBlob=new Blob(chunks,{type});const v=$('out');v.src=URL.createObjectURL(videoBlob);v.hidden=false;v.play().catch(()=>{});
   const file=new File([videoBlob],`pposhong_${Date.now()}.${ext}`,{type});
-  $('saveBtn').hidden=false;$('saveBtn').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(videoBlob);a.download=file.name;document.body.appendChild(a);a.click();a.remove()};
-  $('shareBtn').hidden=!(navigator.canShare&&navigator.canShare({files:[file]}));$('shareBtn').onclick=()=>navigator.share({files:[file]}).catch(()=>{});
+  $('saveBtn').hidden=false;$('saveBtn').onclick=()=>{try{const a=document.createElement('a');a.href=URL.createObjectURL(videoBlob);a.download=file.name;a.rel='noopener';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),1000)}catch(e){}
+    ri.innerHTML='저장을 시작했어요. 알림창이나 갤러리의 <b>Download</b> 폴더를 확인하세요.<br>저장이 안 되면 ① <b>인스타로 공유</b> 버튼을 누르거나 ② 위 영상을 <b>길게 눌러</b> "동영상 다운로드"를 누르세요.';ri.className='status'};
+  $('shareBtn').hidden=!navigator.share;$('shareBtn').onclick=async()=>{try{if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file]});else{ri.textContent='이 브라우저는 영상 공유를 지원하지 않아요. 영상을 길게 눌러 다운로드해주세요.';ri.className='status err'}}catch(e){}};
   ri.textContent=`완성! ${d}초짜리 ${ext.toUpperCase()} 영상이에요.`+(useAudio?' (소리 포함)':' (소리 없음)');ri.className='status ok';$('recBtn').disabled=false;awake(false);draw(0)};
 
 loadMoves();
