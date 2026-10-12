@@ -84,6 +84,8 @@ video{max-height:420px;max-width:100%;border-radius:12px;display:block;margin:0 
   </div>
   <div class="mode-box" id="autoBox">
     <p class="hint">노래를 녹음하거나 고르면 박자를 찾아서, 조용한 부분엔 살랑살랑, 신나는 부분엔 점프와 궁댕이 춤을 알아서 넣어요. 노래가 없으면 랜덤으로 짜요.</p>
+    <div><label for="variety">동작 수</label>
+      <select id="variety"><option value="some">적게 (같은 동작 반복)</option><option value="many" selected>많이</option><option value="max">최대 (모든 동작 총출동)</option></select></div>
     <div class="btns"><button id="reChoreo" class="main">🎲 다른 안무로 바꾸기</button></div>
     <div class="status" id="choreoInfo">아직 안무가 없어요.</div>
   </div>
@@ -150,7 +152,7 @@ const $=id=>document.getElementById(id);
 const W=720,H=1280,cv=$('cv'),cx=cv.getContext('2d');
 function store(k,v){try{localStorage.setItem('psh_'+k,v)}catch(e){}}
 function load(k){try{return localStorage.getItem('psh_'+k)}catch(e){return null}}
-['bpm','startSec','perBeat','blk','drop','cap1','cap2','charSize','dur','mouth'].forEach(id=>{const v=load(id);if(v!==null)$(id).value=v;$(id).addEventListener('change',()=>store(id,$(id).value))});
+['bpm','startSec','perBeat','blk','drop','cap1','cap2','charSize','dur','mouth','variety'].forEach(id=>{const v=load(id);if(v!==null)$(id).value=v;$(id).addEventListener('change',()=>store(id,$(id).value))});
 ['closeup'].forEach(id=>{$(id).checked=load(id)==='1';$(id).addEventListener('change',()=>{store(id,$(id).checked?'1':'0');redraw()})});
 ['bg','mode'].forEach(n=>{const v=load(n);if(v){const r=document.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true}
   document.querySelectorAll(`input[name=${n}]`).forEach(r=>r.addEventListener('change',()=>{store(n,r.value);syncUI();redraw()}))});
@@ -270,28 +272,38 @@ async function detectBeat(){
   let best=-1,bl=50;const sc=[];
   for(let L=33;L<=86;L++){let s=0;for(let i=L;i<n;i++)s+=o[i]*o[i-L];const bpm=6000/L,w=Math.exp(-Math.pow(Math.log2(bpm/118),2)/(2*0.5*0.5));sc[L]=s/(n-L)*w;if(sc[L]>best){best=sc[L];bl=L}}
   let Lf=bl;if(sc[bl-1]!==undefined&&sc[bl+1]!==undefined){const a=sc[bl-1],b=sc[bl],c=sc[bl+1],den=a-2*b+c;if(den)Lf=bl+0.5*(a-c)/den}
-  let bp=0,bs=-1;for(let p=0;p<bl;p++){let s=0;for(let x=p;x<n;x+=Lf)s+=o[Math.round(x)]||0;if(s>bs){bs=s;bp=p}}
+  const comb=(P)=>{let best=-1,bp=0;for(let p=0;p<P;p++){let s=0;for(let x=p;x<n;x+=P){const i=Math.round(x);s+=(o[i]||0)+0.5*((o[i-1]||0)+(o[i+1]||0))}if(s>best){best=s;bp=p}}return[best,bp]};
+  let b0=6000/Lf,bestS=-1,bp=0;for(let bb=b0-4;bb<=b0+4;bb+=0.1){const P=6000/bb,[s,p]=comb(P);const sc=s/Math.sqrt(n/P);if(sc>bestS){bestS=sc;bp=p;Lf=P}}
   const bpm=Math.round(6000/Lf*10)/10;$('bpm').value=Math.round(bpm);store('bpm',$('bpm').value);
   const iv=Lf*0.01;beatOff=(bp*0.01)%iv;taps=[];
   // 박자마다 소리 크기
   const eb=[];for(let t=beatOff;t+iv<dur;t+=iv){let s=0,c=0;for(let i=Math.floor(t*100);i<Math.floor((t+iv)*100)&&i<n;i++){s+=Math.exp(e[i]);c++}eb.push(c?s/c:0)}
   auto.energy=eb;return Math.round(bpm)}
 function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const VERSE=['sway','tail','step','clap','bob','wave','poke','bbuing','chic','hip','bye'];
-const CHORUS=['hooray','disco','jack','shuffle','hip','bounce','kick','heart','flex','wave2','swim','bye','bunny','bang','clap'];
+const LOW=['sway','tail','bob','poke','chic','shy','look','step','clap'];
+const MID=['step','clap','wave','hop','run','flap','kick','spin','bounce','swim','drive','bye','bbuing','kiss','bunny','hip','wave2','sway'];
+const HIGH=['hooray','disco','jack','shuffle','hip','bounce','kick','heart','flex','sing','wave2','lasso','seq','bang','run'];
+const HITS=['hooray','bang','jack','flex','heart'];
 const STILL=new Set(['belly','butt4','backshake','sleep']);
 function pickN(pool,n,r,avoid=[]){const p=pool.filter(k=>byKey(k)&&!avoid.includes(k)),out=[];while(out.length<n&&p.length){out.push(p.splice(Math.floor(r()*p.length),1)[0])}return out}
-function makeChoreo(){const r=rng(auto.seed),bpm=+$('bpm').value||120,beats=Math.ceil((+$('dur').value||12)*bpm/60)+16,chunk=8;
-  const v=pickN(VERSE,2,r),c=pickN(CHORUS,2,r,v);
-  const E=auto.energy;let lv=[];
-  if(E.length){const ce=[];for(let i=0;i<E.length;i+=chunk){const s=E.slice(i,i+chunk);ce.push(s.reduce((a,b)=>a+b,0)/s.length)}
-    const so=[...ce].sort((a,b)=>a-b),mid=so[Math.floor(so.length/2)];lv=ce.map(x=>x>mid*1.05?'C':'V');auto.drop=ce.indexOf(so[so.length-1])*chunk}
-  else{lv=['V','V','C','C'];auto.drop=-1}
-  const segs=[];let vi=0,ci=0;
-  for(let b=0,i=0;b<beats;i++,b+=chunk){const L=lv[i%lv.length];segs.push({mv:L==='C'?c[ci++%c.length]:v[vi++%v.length],beats:chunk})}
-  auto.segs=segs;auto.verse=v;auto.chorus=c;
-  const nm=k=>byKey(k).name;
-  $('choreoInfo').innerHTML=`<b>잔잔한 부분</b>: ${v.map(nm).join(' ↔ ')}<br><b>신나는 부분</b>: ${c.map(nm).join(' ↔ ')}`;$('choreoInfo').className='status ok';redraw()}
+function makeChoreo(){const r=rng(auto.seed),bpm=+$('bpm').value||120,total=Math.ceil((+$('dur').value||12)*bpm/60)+16;
+  const vs=$('variety').value,per=vs==='some'?8:4,setN=vs==='some'?2:vs==='many'?4:99;
+  const E=auto.energy;let lvB=[],be=[];
+  if(E.length){for(let i=0;i<E.length;i+=4){const s=E.slice(i,i+4);be.push(s.reduce((a,b)=>a+b,0)/s.length)}
+    const so=[...be].sort((a,b)=>a-b),q1=so[Math.floor(so.length*0.33)],q2=so[Math.floor(so.length*0.66)];
+    lvB=be.map(v=>v>=q2?2:v>=q1?1:0);auto.drop=be.indexOf(so[so.length-1])*4}
+  else{lvB=[0,0,1,1,1,1,2,2,1,1,2,2,2,2,1,1];auto.drop=-1}
+  const POOLS=[LOW,MID,HIGH];let sets=[[],[],[]],phrase=-1;const idx=[0,0,0],segs=[];let cur=null,left=0,prev=-1;
+  for(let bar=0;bar*4<total;bar++){
+    const ph=Math.floor(bar/8);if(ph!==phrase){phrase=ph;sets=POOLS.map(p=>pickN(p,Math.min(setN,p.length),r));idx[0]=idx[1]=idx[2]=0}
+    const lv=lvB[bar%lvB.length],hit=be.length>1&&bar>0&&lv===2&&be[bar%be.length]>1.3*be[(bar-1+be.length)%be.length];
+    if(hit&&vs!=='some'){const mv=pickN(HITS,1,r,[cur])[0]||'hooray';segs.push({mv,beats:4});cur=mv;left=0;prev=lv;continue}
+    if(left<=0||lv!==prev){const s=sets[lv];let mv=s[idx[lv]++%s.length];if(mv===cur&&s.length>1)mv=s[idx[lv]++%s.length];cur=mv;left=per;segs.push({mv,beats:0})}
+    segs[segs.length-1].beats+=4;left-=4;prev=lv}
+  auto.segs=segs;
+  const maxB=Math.ceil((+$('dur').value||12)*bpm/60),shown=[];let acc=0;for(const s of segs){if(acc>=maxB)break;shown.push(byKey(s.mv).name);acc+=s.beats}
+  $('choreoInfo').innerHTML=`이 영상에 나오는 동작 <b>${new Set(shown).size}가지</b><br>${shown.join(' → ')}`;$('choreoInfo').className='status ok';redraw()}
+$('variety').addEventListener('change',()=>makeChoreo());
 $('reChoreo').onclick=()=>{auto.seed=Math.floor(Math.random()*1e9);makeChoreo()};
 $('dur').addEventListener('change',()=>{if(val('mode')==='auto')makeChoreo()});
 $('bpm').addEventListener('change',()=>{if(val('mode')==='auto')makeChoreo()});
