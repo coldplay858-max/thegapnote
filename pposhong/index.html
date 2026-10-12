@@ -136,8 +136,8 @@ video{max-height:420px;max-width:100%;border-radius:12px;display:block;margin:0 
 <section>
   <h2><span class="n">5</span>영상 만들기</h2>
   <div><label for="dur">영상 길이</label><input type="range" id="dur" min="5" max="30" step="1" value="12"><p class="hint" id="durOut">12초</p></div>
-  <div class="chips"><input type="checkbox" id="withAudio"><label for="withAudio">노래도 영상에 넣기</label></div>
-  <p class="hint">인스타에 올릴 거면 노래는 빼고, 올릴 때 인스타에서 같은 노래를 붙이는 걸 추천해요. 저작권 문제도 없고 노출에도 유리해요.</p>
+  <div class="chips"><input type="checkbox" id="withAudio"><label for="withAudio">녹음한 소리(노래)도 영상에 넣기</label></div>
+  <p class="hint"><b>내 목소리</b>로 녹음했으면 켜두세요(마이크로 녹음하면 자동으로 켜져요). <b>인스타 노래</b>를 녹음했으면 끄고, 올릴 때 인스타에서 같은 노래를 붙이세요. 저작권 문제도 없고 음질도 좋아요.</p>
   <button class="main" id="recBtn">영상 만들기</button>
   <div class="status" id="recInfo" hidden></div>
   <video id="out" controls loop playsinline hidden></video>
@@ -203,6 +203,7 @@ const audio=new Audio();audio.preload='auto';let hasSong=false,songBuf=null,env=
 const startSec=()=>+$('startSec').value||0;
 async function useSong(blob,fromMic){audio.src=URL.createObjectURL(blob);hasSong=true;taps=[];beatOff=0;
   try{const ac=new (window.AudioContext||window.webkitAudioContext)();songBuf=await ac.decodeAudioData(await blob.arrayBuffer());ac.close()}catch(err){songBuf=null}
+  if(fromMic){$('withAudio').checked=true}
   if(fromMic&&songBuf){const d=songBuf.getChannelData(0);let mx=0;for(let i=0;i<d.length;i+=8)mx=Math.max(mx,Math.abs(d[i]));
     let s=0;for(let i=0;i<d.length;i+=8){if(Math.abs(d[i])>mx*0.15){s=i/songBuf.sampleRate;break}}
     $('startSec').value=Math.max(0,Math.floor(s*10)/10);store('startSec',$('startSec').value)}
@@ -340,7 +341,7 @@ $('playBtn').onclick=async()=>{if(playing){stopPlay();return}
 
 /* 영상 */
 let actx=null,srcNode=null,dest=null,videoBlob=null;
-function pickMime(){return ['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||''}
+function pickMime(withA){return (withA?['video/mp4;codecs=avc1,mp4a.40.2','video/mp4;codecs=avc1,opus','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus']:[]).concat(['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm']).find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||''}
 let wake=null;async function awake(on){try{if(on&&'wakeLock' in navigator)wake=await navigator.wakeLock.request('screen');else if(!on&&wake){await wake.release();wake=null}}catch(e){}}
 $('recBtn').onclick=async()=>{
   const ri=$('recInfo');ri.hidden=false;ri.className='status';
@@ -350,7 +351,7 @@ $('recBtn').onclick=async()=>{
   const stream=cv.captureStream(30);const useAudio=$('withAudio').checked&&hasSong;
   if(useAudio){if(!actx){actx=new AudioContext();srcNode=actx.createMediaElementSource(audio);dest=actx.createMediaStreamDestination();srcNode.connect(dest);srcNode.connect(actx.destination)}
     await actx.resume();dest.stream.getAudioTracks().forEach(tr=>stream.addTrack(tr));audio.currentTime=startSec();await audio.play()}
-  const mime=pickMime(),rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:6e6}:undefined),chunks=[];
+  const mime=pickMime(useAudio),rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:6e6}:undefined),chunks=[];
   rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};const done=new Promise(r=>rec.onstop=r);
   const d=+$('dur').value;rec.start(200);const st=performance.now();
   await new Promise(res=>{const tick=()=>{const t=(performance.now()-st)/1000;if(t>=d){res();return}draw(t);
@@ -362,7 +363,7 @@ $('recBtn').onclick=async()=>{
   const file=new File([videoBlob],`pposhong_${Date.now()}.${ext}`,{type});
   $('saveBtn').hidden=false;$('saveBtn').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(videoBlob);a.download=file.name;document.body.appendChild(a);a.click();a.remove()};
   $('shareBtn').hidden=!(navigator.canShare&&navigator.canShare({files:[file]}));$('shareBtn').onclick=()=>navigator.share({files:[file]}).catch(()=>{});
-  ri.textContent=`완성! ${d}초짜리 ${ext.toUpperCase()} 영상이에요.`;ri.className='status ok';$('recBtn').disabled=false;awake(false);draw(0)};
+  ri.textContent=`완성! ${d}초짜리 ${ext.toUpperCase()} 영상이에요.`+(useAudio?' (소리 포함)':' (소리 없음)');ri.className='status ok';$('recBtn').disabled=false;awake(false);draw(0)};
 
 loadMoves();
 </script>
