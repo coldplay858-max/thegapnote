@@ -59,7 +59,9 @@ video{max-height:420px;max-width:100%;border-radius:12px;display:block;margin:0 
 
 <section>
   <h2><span class="n">1</span>음악과 박자</h2>
-  <div><label for="song">노래 파일 (선택)</label>
+  <div class="btns"><button id="micBtn" class="main">🎙 마이크로 노래 녹음</button></div>
+  <p class="hint">PC나 다른 휴대폰으로 인스타 노래를 틀고, 이 버튼을 눌러 녹음하세요. 쓰고 싶은 부분이 끝나면 다시 눌러 녹음을 끝내요. 녹음은 박자·입 맞추기에만 쓰고 영상에는 안 들어가요.</p>
+  <div><label for="song">또는 노래 파일 고르기</label>
     <input type="file" id="song" accept="audio/*">
     <p class="hint">노래 파일이 있으면 박자 찍기와 입 뻥긋 자동 맞추기를 쓸 수 있어요. 없으면 다른 기기로 노래를 틀고 버튼만 눌러도 돼요.</p></div>
   <div class="row">
@@ -191,9 +193,22 @@ $('mouth').addEventListener('change',()=>{syncUI();if($('mouth').value==='auto')
 let taps=[],beatOff=0;
 const audio=new Audio();audio.preload='auto';let hasSong=false,songBuf=null,env=null;
 const startSec=()=>+$('startSec').value||0;
-$('song').onchange=async e=>{const f=e.target.files[0];if(!f)return;audio.src=URL.createObjectURL(f);hasSong=true;
-  info('노래를 불러왔어요. "노래 틀고 박자 찍기"를 누른 뒤 박자에 맞춰 톡! 버튼을 누르세요.');
-  try{const ac=new (window.AudioContext||window.webkitAudioContext)();songBuf=await ac.decodeAudioData(await f.arrayBuffer());ac.close();if($('mouth').value==='auto')analyze()}catch(err){songBuf=null}};
+async function useSong(blob,fromMic){audio.src=URL.createObjectURL(blob);hasSong=true;taps=[];beatOff=0;
+  try{const ac=new (window.AudioContext||window.webkitAudioContext)();songBuf=await ac.decodeAudioData(await blob.arrayBuffer());ac.close()}catch(err){songBuf=null}
+  if(fromMic&&songBuf){const d=songBuf.getChannelData(0);let mx=0;for(let i=0;i<d.length;i+=8)mx=Math.max(mx,Math.abs(d[i]));
+    let s=0;for(let i=0;i<d.length;i+=8){if(Math.abs(d[i])>mx*0.15){s=i/songBuf.sampleRate;break}}
+    $('startSec').value=Math.max(0,Math.floor(s*10)/10);store('startSec',$('startSec').value)}
+  if($('mouth').value==='auto')analyze();
+  info((fromMic?`녹음 완료 (${songBuf?Math.round(songBuf.duration):'?'}초). 노래 시작 위치를 자동으로 맞췄어요. `:'노래를 불러왔어요. ')+'이제 "노래 틀고 박자 찍기"를 누르고 박자마다 톡! 누르세요.','ok')}
+$('song').onchange=e=>{const f=e.target.files[0];if(f)useSong(f,false)};
+let micRec=null;
+$('micBtn').onclick=async()=>{
+  if(micRec&&micRec.state==='recording'){micRec.stop();return}
+  try{const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    const ch=[];micRec=new MediaRecorder(st);micRec.ondataavailable=e=>{if(e.data.size)ch.push(e.data)};
+    micRec.onstop=async()=>{st.getTracks().forEach(x=>x.stop());$('micBtn').textContent='🎙 마이크로 노래 녹음';await useSong(new Blob(ch,{type:micRec.mimeType}),true)};
+    micRec.start(200);$('micBtn').textContent='■ 녹음 끝내기';info('녹음 중이에요. 다른 기기로 노래를 틀어주세요. 다 들었으면 "녹음 끝내기"를 누르세요.')}
+  catch(e){info('마이크를 쓸 수 없어요. 주소창 왼쪽 자물쇠를 눌러 마이크 권한을 "허용"으로 바꿔주세요.','err')}};
 $('startSec').addEventListener('change',()=>{if($('mouth').value==='auto')analyze()});
 function info(t,c){const s=$('tapInfo');s.textContent=t;s.className='status'+(c?' '+c:'')}
 function mInfo(t,c){const s=$('mInfo');s.textContent=t;s.className='status'+(c?' '+c:'')}
