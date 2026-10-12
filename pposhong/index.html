@@ -208,7 +208,8 @@ async function useSong(blob,fromMic){audio.src=URL.createObjectURL(blob);hasSong
     let s=0;for(let i=0;i<d.length;i+=8){if(Math.abs(d[i])>mx*0.15){s=i/songBuf.sampleRate;break}}
     $('startSec').value=Math.max(0,Math.floor(s*10)/10);store('startSec',$('startSec').value)}
   if($('mouth').value==='auto')analyze();
-  const bt=songBuf?await detectBeat():null;makeChoreo();
+  if(!songBuf){info('이 파일에서 소리를 못 읽었어요. 다른 파일을 고르거나 "마이크로 노래 녹음"을 써주세요.','err');return}
+  const bt=await detectBeat();makeChoreo();
   if(bt){info(`${fromMic?'녹음 완료. ':''}빠르기 ${bt} BPM을 찾아서 안무를 짰어요. ▶ 미리보기로 확인하세요.`,'ok');return}
   info((fromMic?`녹음 완료 (${songBuf?Math.round(songBuf.duration):'?'}초). 노래 시작 위치를 자동으로 맞췄어요. `:'노래를 불러왔어요. ')+'이제 "노래 틀고 박자 찍기"를 누르고 박자마다 톡! 누르세요.','ok')}
 $('song').onchange=e=>{const f=e.target.files[0];if(f)useSong(f,false)};
