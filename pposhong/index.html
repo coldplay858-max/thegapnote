@@ -130,7 +130,7 @@ video{max-height:420px;max-width:100%;border-radius:12px;display:block;margin:0 
   <div class="chips"><input type="checkbox" id="closeup"><label for="closeup">클로즈업 (뽀숑이 크게)</label></div>
   <div><label for="cap1">위쪽 글자 (자유 춤일 때)</label><input type="text" id="cap1" placeholder="예) 월급날 나"></div>
   <div><label for="cap2">작은 글자 (선택)</label><input type="text" id="cap2" placeholder="예) Me on payday"></div>
-  <div><label for="size">뽀숑이 크기</label><input type="range" id="size" min="0.15" max="0.6" step="0.01" value="0.3"></div>
+  <div><label for="charSize">뽀숑이 크기</label><input type="range" id="charSize" min="0.2" max="0.95" step="0.01" value="0.62"></div>
 </section>
 
 <section>
@@ -150,7 +150,7 @@ const $=id=>document.getElementById(id);
 const W=720,H=1280,cv=$('cv'),cx=cv.getContext('2d');
 function store(k,v){try{localStorage.setItem('psh_'+k,v)}catch(e){}}
 function load(k){try{return localStorage.getItem('psh_'+k)}catch(e){return null}}
-['bpm','startSec','perBeat','blk','drop','cap1','cap2','size','dur','mouth'].forEach(id=>{const v=load(id);if(v!==null)$(id).value=v;$(id).addEventListener('change',()=>store(id,$(id).value))});
+['bpm','startSec','perBeat','blk','drop','cap1','cap2','charSize','dur','mouth'].forEach(id=>{const v=load(id);if(v!==null)$(id).value=v;$(id).addEventListener('change',()=>store(id,$(id).value))});
 ['closeup'].forEach(id=>{$(id).checked=load(id)==='1';$(id).addEventListener('change',()=>{store(id,$(id).checked?'1':'0');redraw()})});
 ['bg','mode'].forEach(n=>{const v=load(n);if(v){const r=document.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true}
   document.querySelectorAll(`input[name=${n}]`).forEach(r=>r.addEventListener('change',()=>{store(n,r.value);syncUI();redraw()}))});
@@ -276,22 +276,21 @@ async function detectBeat(){
   const eb=[];for(let t=beatOff;t+iv<dur;t+=iv){let s=0,c=0;for(let i=Math.floor(t*100);i<Math.floor((t+iv)*100)&&i<n;i++){s+=Math.exp(e[i]);c++}eb.push(c?s/c:0)}
   auto.energy=eb;return Math.round(bpm)}
 function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const POOL={low:['sway','bob','shy','tail','look','shrug','sleep','chic','poke','step'],
-  mid:['tail','step','clap','wave','hop','run','flap','kick','spin','bounce','sway','disco','swim','drive','bye','bbuing','kiss','bunny','poke','wave2'],
-  high:['hooray','disco','jack','butt4','backshake','belly','heart','flex','sing','bounce','kick','spin','hip','shuffle','lasso','seq','bang','wave2']};
-function makeChoreo(){const r=rng(auto.seed),beats=Math.ceil((+$('dur').value||12)*(+$('bpm').value||120)/60)+16;
-  const E=auto.energy,chunk=8,segs=[];let lv=[];
+const VERSE=['sway','tail','step','clap','bob','wave','poke','bbuing','chic','hip','bye'];
+const CHORUS=['hooray','disco','jack','shuffle','hip','bounce','kick','heart','flex','wave2','swim','bye','bunny','bang','clap'];
+const STILL=new Set(['belly','butt4','backshake','sleep']);
+function pickN(pool,n,r,avoid=[]){const p=pool.filter(k=>byKey(k)&&!avoid.includes(k)),out=[];while(out.length<n&&p.length){out.push(p.splice(Math.floor(r()*p.length),1)[0])}return out}
+function makeChoreo(){const r=rng(auto.seed),bpm=+$('bpm').value||120,beats=Math.ceil((+$('dur').value||12)*bpm/60)+16,chunk=8;
+  const v=pickN(VERSE,2,r),c=pickN(CHORUS,2,r,v);
+  const E=auto.energy;let lv=[];
   if(E.length){const ce=[];for(let i=0;i<E.length;i+=chunk){const s=E.slice(i,i+chunk);ce.push(s.reduce((a,b)=>a+b,0)/s.length)}
-    const so=[...ce].sort((a,b)=>a-b),q1=so[Math.floor(so.length/3)],q2=so[Math.floor(so.length*2/3)];
-    lv=ce.map(v=>v>=q2&&so.length>2?'high':v<=q1&&so.length>2?'low':'mid');auto.drop=ce.indexOf(so[so.length-1])*chunk}
-  else{lv=['low','mid','mid','high','mid','high','high','mid'];auto.drop=-1}
-  let last='';for(let b=0,c=0;b<beats;c++){const L=lv[c%lv.length],len=L==='high'&&r()<0.5?4:chunk;
-    const pool=POOL[L].filter(k=>byKey(k)&&k!==last);const mv=pool[Math.floor(r()*pool.length)]||'tail';
-    segs.push({mv,beats:Math.min(len,chunk)});if(len<chunk){const p2=POOL[L].filter(k=>byKey(k)&&k!==mv);segs.push({mv:p2[Math.floor(r()*p2.length)]||'tail',beats:chunk-len})}
-    last=segs[segs.length-1].mv;b+=chunk}
-  auto.segs=segs;
-  const names=[];let acc=0;const maxB=Math.ceil((+$('dur').value||12)*(+$('bpm').value||120)/60);for(const s of segs){if(acc>=maxB)break;names.push(byKey(s.mv).name);acc+=s.beats}
-  $('choreoInfo').textContent='안무: '+names.join(' → ');$('choreoInfo').className='status ok';redraw()}
+    const so=[...ce].sort((a,b)=>a-b),mid=so[Math.floor(so.length/2)];lv=ce.map(x=>x>mid*1.05?'C':'V');auto.drop=ce.indexOf(so[so.length-1])*chunk}
+  else{lv=['V','V','C','C'];auto.drop=-1}
+  const segs=[];let vi=0,ci=0;
+  for(let b=0,i=0;b<beats;i++,b+=chunk){const L=lv[i%lv.length];segs.push({mv:L==='C'?c[ci++%c.length]:v[vi++%v.length],beats:chunk})}
+  auto.segs=segs;auto.verse=v;auto.chorus=c;
+  const nm=k=>byKey(k).name;
+  $('choreoInfo').innerHTML=`<b>잔잔한 부분</b>: ${v.map(nm).join(' ↔ ')}<br><b>신나는 부분</b>: ${c.map(nm).join(' ↔ ')}`;$('choreoInfo').className='status ok';redraw()}
 $('reChoreo').onclick=()=>{auto.seed=Math.floor(Math.random()*1e9);makeChoreo()};
 $('dur').addEventListener('change',()=>{if(val('mode')==='auto')makeChoreo()});
 $('bpm').addEventListener('change',()=>{if(val('mode')==='auto')makeChoreo()});
@@ -306,15 +305,20 @@ function segAt(k){
   const list=act.length?act:MV.filter(m=>m.imgs.length);if(!list.length)return null;
   const blk=+$('blk').value||8;return{m:list[Math.floor(k/blk)%list.length],cap:null}}
 function imgAt(k,t){const s=segAt(k);if(!s)return[null,null];const set=s.m.imgs[k%s.m.imgs.length],mo=mouthState(t);return[mo===null?set.n:(mo?set.o:set.c),s.cap]}
-function drawChar(im,x,y,sz,since){if(!im)return;const e=ease(since),sy=1-0.09*e,sx=1+0.06*e,w=sz*sx,h=sz*sy;cx.drawImage(im,x-w/2,y+sz/2-h,w,h)}
+let MOTION={k:0,ph:0,still:false};
+function drawChar(im,x,y,sz,since){if(!im)return;const e=ease(since),sy=1-0.08*e,sx=1+0.05*e,w=sz*sx,h=sz*sy;
+  const amp=MOTION.still?0.35:1,ang=amp*5*Math.PI/180*Math.sin(Math.PI*(MOTION.k+MOTION.ph)),hop=amp*sz*0.045*Math.sin(Math.PI*Math.min(1,MOTION.ph*1.4));
+  cx.save();cx.translate(x,y+sz/2-hop);cx.rotate(ang);cx.drawImage(im,-w/2,-h,w,h);cx.restore()}
 function draw(t){
   const iv=60/(+$('bpm').value||120)*(+$('perBeat').value||1),rel=t-beatOff;
   const k=Math.max(0,Math.floor(rel/iv)),since=rel<0?1:rel-k*iv;
+  {const sg=segAt(k);MOTION={k,ph:Math.min(1,Math.max(0,since/iv)),still:!!(sg&&STILL.has(sg.m.key))}}
   const bg=val('bg'),dur=+$('dur').value,dv=$('drop').value,close=$('closeup').checked;
   const kb=Math.max(0,Math.floor(rel/(60/(+$('bpm').value||120))));let dropping;
   if(dv==='auto'){const db=auto.drop>=0?auto.drop:Math.floor(dur*0.66*(+$('bpm').value||120)/60);dropping=kb>=db&&kb<db+8}else{const dropAt=+dv;dropping=dropAt>0&&t>=dur*dropAt}
   cx.fillStyle=bg==='band'?'#000':bg;cx.fillRect(0,0,W,H);
-  if(bg==='band'&&!close){cx.fillStyle='#fff';cx.fillRect(0,H*0.39,W,H*0.22)}
+  const sz0=W*(+$('charSize').value||0.62),bandH=Math.max(H*0.22,sz0*1.18);
+  if(bg==='band'&&!close){cx.fillStyle='#fff';cx.fillRect(0,H*0.52-bandH/2,W,bandH)}
   let cap=null;
   if(dropping){const cols=4,cell=W/cols,rows=Math.ceil(H/cell)+1;
     for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){cx.fillStyle=(r+c)%2?'#fff':'#ffe3ea';cx.fillRect(c*cell,r*cell,cell,cell);
@@ -322,13 +326,13 @@ function draw(t){
     cap=imgAt(k,t)[1]}
   else{const [im,cp]=imgAt(k,t);cap=cp;
     if(close){if(bg==='band'){cx.fillStyle='#fff';cx.fillRect(0,H*0.3,W,H*0.56)}drawChar(im,W/2,H*0.6,W*0.95,since)}
-    else{const sz=W*(+$('size').value||0.3);drawChar(im,W/2,bg==='band'?H*0.5:H*0.58,sz,since)}}
+    else{drawChar(im,W/2,bg==='band'?H*0.52:H*0.58,sz0,since)}}
   const c1=(cap!==null&&cap!==undefined?cap:$('cap1').value).trim(),c2=$('cap2').value.trim();
   if(c1||c2){const dark=bg==='band';cx.textAlign='center';cx.textBaseline='middle';const y0=close?H*0.17:H*0.2;
     if(c1){cx.font='400 64px Jua, "Gothic A1", sans-serif';cx.lineWidth=12;cx.lineJoin='round';cx.strokeStyle=dark?'#000':'#fff';cx.fillStyle=dark?'#fff':'#1d1a1c';cx.strokeText(c1,W/2,y0,W-80);cx.fillText(c1,W/2,y0,W-80)}
     if(c2){cx.font='600 34px "Gothic A1", sans-serif';cx.fillStyle=dark?'#ddd':'#555';cx.fillText(c2,W/2,y0+(c1?66:0),W-80)}}
 }
-['cap1','cap2','size','perBeat','blk','drop','bpm','dur'].forEach(id=>$(id).addEventListener('input',()=>{if(id==='dur')$('durOut').textContent=$('dur').value+'초';redraw()}));
+['cap1','cap2','charSize','perBeat','blk','drop','bpm','dur'].forEach(id=>$(id).addEventListener('input',()=>{if(id==='dur')$('durOut').textContent=$('dur').value+'초';redraw()}));
 $('durOut').textContent=$('dur').value+'초';
 
 /* 미리보기 */
