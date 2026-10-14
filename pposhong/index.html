@@ -52,7 +52,7 @@ video{max-height:420px;max-width:100%;border-radius:12px;display:block;margin:0 
 </head>
 <body>
 <div class="wrap">
-<header><h1>뽀숑이 댄스 메이커</h1><p>노래만 넣으면 뽀숑이와 캥거루가 알아서 춤추는 릴스 만들기</p></header>
+<header><h1>뽀숑이 댄스 메이커</h1><p>노래만 넣으면 뽀숑이와 캉캉이가 알아서 춤추는 릴스 만들기</p></header>
 
 <div class="screen"><canvas id="cv" width="720" height="1280" aria-label="미리보기"></canvas></div>
 <div class="btns"><button id="playBtn" class="main">▶ 미리보기</button></div>
@@ -142,8 +142,11 @@ video{max-height:420px;max-width:100%;border-radius:12px;display:block;margin:0 
 <section>
   <h2><span class="n">4</span>화면</h2>
   <div><label>캐릭터</label><div class="chips" role="radiogroup" aria-label="캐릭터">
-    <input type="radio" name="who" id="w1" value="pp" checked><label for="w1">뽀숑이</label>
-    <input type="radio" name="who" id="w2" value="kg"><label for="w2">캥거루</label>
+    <input type="radio" name="who" id="wb1" value="bpp" checked><label for="wb1">🐶 아기 뽀숑이</label>
+    <input type="radio" name="who" id="wb2" value="bkk"><label for="wb2">🦘 아기 캉캉이</label>
+    <input type="radio" name="who" id="wb3" value="bboth"><label for="wb3">아기 둘이</label>
+    <input type="radio" name="who" id="w1" value="pp"><label for="w1">뽀숑이</label>
+    <input type="radio" name="who" id="w2" value="kg"><label for="w2">캉캉이</label>
     <input type="radio" name="who" id="w3" value="both"><label for="w3">둘이 같이</label>
   </div></div>
   <div class="chips" role="radiogroup" aria-label="배경">
@@ -379,6 +382,139 @@ $('reChoreo').onclick=()=>{auto.seed=Math.floor(Math.random()*1e9);makeChoreo()}
 $('dur').addEventListener('change',()=>{if(val('mode')==='auto')makeChoreo()});
 $('bpm').addEventListener('change',()=>{if(val('mode')==='auto')makeChoreo()});
 
+/* 아기 뽀숑이: 매 프레임 계산해서 그리는 캐릭터 (귀·꼬리 출렁임, 손그림 떨림) */
+const Baby=(()=>{
+  const INK='#1d1a1c',WHITE='#ffffff',PAL={accent:'#f3c08f',body:'#ffffff'},PINK='rgba(255,150,175,0.45)',TONGUE='#ff8aa2';
+  const rnd=s=>{const x=Math.sin(s*127.1+311.7)*43758.5453;return x-Math.floor(x)};
+  // 점들을 떨리게 만든 뒤 부드러운 곡선으로 잇기
+  function blob(ctx,pts,seed,amp,fill,lw){
+    const p=pts.map((q,i)=>[q[0]+(rnd(seed+i*7.3)-0.5)*amp,q[1]+(rnd(seed+i*3.1+50)-0.5)*amp]);
+    const n=p.length;ctx.beginPath();
+    for(let i=0;i<n;i++){const a=p[(i-1+n)%n],b=p[i],c=p[(i+1)%n],d=p[(i+2)%n];
+      if(i===0)ctx.moveTo(b[0],b[1]);
+      ctx.bezierCurveTo(b[0]+(c[0]-a[0])/6,b[1]+(c[1]-a[1])/6,c[0]-(d[0]-b[0])/6,c[1]-(d[1]-b[1])/6,c[0],c[1])}
+    ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}if(lw){ctx.lineWidth=lw;ctx.strokeStyle=INK;ctx.lineJoin='round';ctx.stroke()}
+  }
+  const ell=(cx,cy,rx,ry,n=14,rot=0)=>{const r=rot*Math.PI/180,o=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2,x=Math.cos(a)*rx,y=Math.sin(a)*ry;o.push([cx+x*Math.cos(r)-y*Math.sin(r),cy+x*Math.sin(r)+y*Math.cos(r)])}return o};
+  function line(ctx,pts,lw,seed,amp){ctx.beginPath();pts.forEach((q,i)=>{const x=q[0]+(rnd(seed+i)-0.5)*amp,y=q[1]+(rnd(seed+i+9)-0.5)*amp;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.lineWidth=lw;ctx.strokeStyle=INK;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke()}
+
+  // st: 포즈 상태. size: 캐릭터 상자 크기(px). (x,y)=발 아래 중앙
+  function draw(ctx,x,y,size,st,t,kind){
+    if(kind==='kk')return drawKK(ctx,x,y,size,st,t);
+    const S=size/400,seed=Math.floor(t*12)*13.7,J=2.2,LW=8.5;
+    ctx.save();ctx.translate(x,y);ctx.scale(S,S);ctx.translate(-200,-376);
+    ctx.translate(st.dx,st.dy);ctx.translate(200,372);ctx.rotate(st.tilt*Math.PI/180);ctx.scale(1/Math.sqrt(st.sq),st.sq);ctx.translate(-200,-372);
+    // 꼬리 (몸 뒤, 오른쪽 아래)
+    ctx.save();ctx.translate(254,318);ctx.rotate(st.tail*Math.PI/180);
+    blob(ctx,ell(18,-6,19,13,9,-30),seed+1,J,PAL.accent,LW);ctx.restore();
+    // 다리
+    blob(ctx,ell(176,362-st.legL,21,14,10),seed+2,J,WHITE,LW);
+    blob(ctx,ell(224,362-st.legR,21,14,10),seed+3,J,WHITE,LW);
+    // 몸
+    blob(ctx,ell(200,306,62,58,16),seed+4,J,WHITE,LW);
+    // 팔
+    for(const [a,sd] of [[st.armL,5],[st.armR,6]]) if(!a.front) blob(ctx,ell(a.x,a.y,16,14,9),seed+sd,J,WHITE,LW);
+    // 머리 (기울기)
+    ctx.save();ctx.translate(200,262);ctx.rotate(st.htilt*Math.PI/180);ctx.translate(-200,-262);
+    // 정수리 뽀글 털
+    for(const [tx,ty,r] of [[182,104,17],[202,96,19],[222,104,17]]) blob(ctx,ell(tx,ty,r,r*0.9,8),seed+tx,J*0.8,WHITE,LW);
+    blob(ctx,ell(200,186,104,88,22),seed+7,J,WHITE,LW);
+    // 귀 (머리 옆에 매달려 출렁)
+    for(const [px,sgn,ang,sd] of [[110,-1,st.earL,8],[290,1,st.earR,9]]){
+      ctx.save();ctx.translate(px,150);ctx.rotate(sgn*ang*Math.PI/180);
+      blob(ctx,ell(sgn*4,44,26,46,12,sgn*-8),seed+sd,J,PAL.accent,LW);ctx.restore()}
+    // 얼굴: 흐리멍텅
+    const ex=40,ey=206;
+    if(st.eye==='closed'){line(ctx,[[200-ex-8,ey],[200-ex+8,ey]],6,seed+10,1);line(ctx,[[200+ex-8,ey],[200+ex+8,ey]],6,seed+11,1)}
+    else if(st.eye==='happy'){for(const sx of[-1,1]){ctx.beginPath();ctx.arc(200+sx*ex,ey+4,9,Math.PI*1.15,Math.PI*1.85);ctx.lineWidth=5.5;ctx.strokeStyle=INK;ctx.stroke()}}
+    else{ctx.fillStyle=INK;for(const sx of[-1,1]){ctx.beginPath();ctx.ellipse(200+sx*ex+st.look,ey,6.5,7.5,0,0,Math.PI*2);ctx.fill()}}
+    ctx.fillStyle=PINK;for(const sx of[-1,1]){ctx.beginPath();ctx.ellipse(200+sx*62,232,15,8,0,0,Math.PI*2);ctx.fill()}
+    ctx.fillStyle=INK;ctx.beginPath();ctx.ellipse(200,224,7,5,0,0,Math.PI*2);ctx.fill();
+    if(st.mouth==='open'){ctx.beginPath();ctx.ellipse(200,240,8,7,0,0,Math.PI*2);ctx.fillStyle=TONGUE;ctx.fill();ctx.lineWidth=4.5;ctx.strokeStyle=INK;ctx.stroke()}
+    else{ctx.beginPath();ctx.moveTo(190,233);ctx.quadraticCurveTo(195,240,200,233);ctx.quadraticCurveTo(205,240,210,233);ctx.lineWidth=4.5;ctx.strokeStyle=INK;ctx.lineCap='round';ctx.stroke()}
+    ctx.restore();
+    // 얼굴 앞 팔
+    for(const [a,sd] of [[st.armL,5],[st.armR,6]]) if(a.front) blob(ctx,ell(a.x,a.y,16,14,9),seed+sd+20,J,WHITE,LW);
+    ctx.restore();
+  }
+
+  // ---- 아기 캉캉이 (캥거루) ----
+  const TAN='#d9a066',CREAM='#fff1dc',RED='#e8394d',BROWN='#6b4226';
+  function drawKK(ctx,x,y,size,st,t){
+    const S=size/400,seed=Math.floor(t*12)*17.3+5,J=2.2,LW=8.5;
+    ctx.save();ctx.translate(x,y);ctx.scale(S,S);ctx.translate(-200,-376);
+    ctx.translate(st.dx,st.dy);ctx.translate(200,372);ctx.rotate(st.tilt*Math.PI/180);ctx.scale(1/Math.sqrt(st.sq),st.sq);ctx.translate(-200,-372);
+    // 꼬리: 두툼하고 길게, 통통 튕김
+    ctx.save();ctx.translate(236,330);ctx.rotate(st.tail*0.5*Math.PI/180);
+    blob(ctx,[[0,-14],[40,-8],[78,8],[104,30],[96,40],[66,30],[30,18],[0,14]],seed+1,J,TAN,LW);ctx.restore();
+    // 큰 발
+    blob(ctx,ell(172,364-st.legL,28,13,10),seed+2,J,TAN,LW);blob(ctx,ell(228,364-st.legR,28,13,10),seed+3,J,TAN,LW);
+    // 몸 + 배
+    blob(ctx,ell(200,302,60,62,16),seed+4,J,TAN,LW);blob(ctx,ell(200,312,36,40,12),seed+44,J*0.6,CREAM,0);
+    const glove=(a,sd)=>{blob(ctx,ell(a.x,a.y+14,11,7,8),seed+sd+3,J*0.6,CREAM,6);blob(ctx,ell(a.x,a.y,19,17,10),seed+sd,J,RED,LW);
+      ctx.beginPath();ctx.arc(a.x-6,a.y-6,5,Math.PI*1.1,Math.PI*1.7);ctx.strokeStyle='#ff9aa8';ctx.lineWidth=4;ctx.stroke()};
+    for(const [a,sd] of [[st.armL,5],[st.armR,6]]) if(!a.front) glove(a,sd);
+    ctx.save();ctx.translate(200,262);ctx.rotate(st.htilt*Math.PI/180);ctx.translate(-200,-262);
+    // 쫑긋 긴 귀 (뿌리 기준으로 출렁, 귀 쫑긋 동작 땐 폴더처럼 접힘)
+    for(const [px,sgn,ang,sd] of [[156,-1,st.earL,8],[244,1,st.earR,9]]){
+      ctx.save();ctx.translate(px,118);ctx.rotate((sgn*14-sgn*ang*0.5)*Math.PI/180);
+      const fold=Math.max(0,Math.min(1,-ang/150));
+      ctx.scale(1,1-fold*1.6);
+      blob(ctx,ell(0,-44,20,50,12),seed+sd,J,TAN,LW);blob(ctx,ell(0,-40,9,34,10),seed+sd+30,J*0.5,CREAM,0);ctx.restore()}
+    blob(ctx,ell(200,190,96,84,20),seed+7,J,TAN,LW);
+    blob(ctx,ell(200,228,38,26,12),seed+77,J*0.6,CREAM,0);
+    const ex=40,ey=200;
+    if(st.eye==='closed'){line(ctx,[[200-ex-8,ey],[200-ex+8,ey]],6,seed+10,1);line(ctx,[[200+ex-8,ey],[200+ex+8,ey]],6,seed+11,1)}
+    else if(st.eye==='happy'){for(const sx of[-1,1]){ctx.beginPath();ctx.arc(200+sx*ex,ey+4,9,Math.PI*1.15,Math.PI*1.85);ctx.lineWidth=5.5;ctx.strokeStyle=INK;ctx.stroke()}}
+    else{ctx.fillStyle=INK;for(const sx of[-1,1]){ctx.beginPath();ctx.ellipse(200+sx*ex+st.look,ey,6.5,7.5,0,0,Math.PI*2);ctx.fill()}}
+    ctx.fillStyle=PINK;for(const sx of[-1,1]){ctx.beginPath();ctx.ellipse(200+sx*64,228,14,7,0,0,Math.PI*2);ctx.fill()}
+    ctx.fillStyle=BROWN;ctx.beginPath();ctx.ellipse(200,218,8,6,0,0,Math.PI*2);ctx.fill();
+    if(st.mouth==='open'){ctx.beginPath();ctx.ellipse(200,236,8,7,0,0,Math.PI*2);ctx.fillStyle=TONGUE;ctx.fill();ctx.lineWidth=4.5;ctx.strokeStyle=INK;ctx.stroke()}
+    else{ctx.beginPath();ctx.moveTo(190,230);ctx.quadraticCurveTo(195,237,200,230);ctx.quadraticCurveTo(205,237,210,230);ctx.lineWidth=4.5;ctx.strokeStyle=INK;ctx.lineCap='round';ctx.stroke()}
+    ctx.restore();
+    for(const [a,sd] of [[st.armL,5],[st.armR,6]]) if(a.front) glove(a,sd+20);
+    ctx.restore();
+  }
+  // 동작: k=박자 번호, ph=박자 안 진행(0~1), t=시간(초)
+  const MOVES={
+    bounce:'통통', sway:'살랑살랑', earflap:'귀 쫑긋', giggle:'키득키득', hop:'깡총', step:'제자리 걸음', wave:'손 흔들기', clap:'박수', nod:'끄덕끄덕'
+  };
+  function headTiltAt(move,k,ph){const u=k+ph;
+    if(move==='sway')return 7*Math.sin(Math.PI*u-0.5);
+    if(move==='nod')return 5*Math.sin(Math.PI*2*u);
+    if(move==='giggle')return 4*Math.sin(u*Math.PI*6);
+    return 2.5*Math.sin(Math.PI*u)}
+  function pose(move,k,ph,t,energy=1){
+    const b=Math.exp(-ph*5);
+    const st={dx:0,dy:8*b,sq:1-0.07*b,tilt:0,htilt:headTiltAt(move,k,ph),armL:{x:144,y:306},armR:{x:256,y:306},legL:0,legR:0,eye:'dot',mouth:'w',earL:0,earR:0,tail:0,look:0};
+    const u=k+ph;
+    if(move==='sway'){st.tilt=8*Math.sin(Math.PI*u);st.armL.y=310;st.armR.y=310}
+    if(move==='bounce'||move==='hop'){const h=move==='hop'?42:16;st.dy-=h*Math.sin(Math.PI*Math.min(1,ph*1.25));if(move==='hop'){st.legL=st.legR=6*Math.sin(Math.PI*ph);st.mouth='open';st.armL={x:136,y:286};st.armR={x:264,y:286}}}
+    if(move==='giggle'){st.armL={x:184,y:240,front:1};st.armR={x:216,y:242,front:1};st.eye='happy';st.dy+=2*Math.sin(t*44);st.tilt=2*Math.sin(t*22)}
+    if(move==='step'){const l=(k%2===0);const lift=10*Math.sin(Math.PI*ph);if(l)st.legL=lift;else st.legR=lift;st.tilt=(l?-1:1)*4}
+    if(move==='wave'){st.armR={x:270,y:226+10*Math.sin(u*Math.PI*2)};st.htilt-=4;st.eye=k%4===3?'happy':'dot'}
+    if(move==='clap'){const c=Math.exp(-ph*7);st.armL={x:184+(1-c)*-30,y:286,front:1};st.armR={x:216+(1-c)*30,y:286,front:1};st.mouth=c>0.5?'open':'w'}
+    if(move==='nod'){st.eye='closed';st.dy+=4*Math.sin(Math.PI*2*u)}
+    // 귀: 박자마다 출렁 + 고개 움직임 따라 한 박자 늦게
+    const dh=headTiltAt(move,k,ph)-headTiltAt(move,k,Math.max(0,ph-0.12));
+    const flop=16*Math.exp(-ph*4)*Math.sin(ph*14);
+    st.earL=flop-dh*3+st.tilt*0.6;st.earR=flop+dh*3-st.tilt*0.6;
+    if(move==='earflap'){const up=k%2===0;const e=Math.sin(Math.PI*Math.min(1,ph*1.6));if(up)st.earL=-150*e+st.earL*0.3;else st.earR=-150*e+st.earR*0.3;st.look=(up?-3:3)}
+    if(move==='hop'){st.earL+=-40*Math.sin(Math.PI*ph);st.earR+=-40*Math.sin(Math.PI*ph)}
+    // 꼬리: 계속 살랑, 신날수록 빨리
+    st.tail=(18+10*energy)*Math.sin(t*Math.PI*2*(2.2+1.2*energy));
+    // 가끔 깜빡
+    if(st.eye==='dot'&&((t*0.41+0.13)%1)<0.035)st.eye='closed';
+    return st}
+  return {draw,pose,MOVES,PAL};
+})();
+
+
+const BMOVE={groove:'earflap',turn:'earflap',bob:'nod',sleep:'nod',chic:'nod',look:'nod',shrug:'nod',shy:'giggle',poke:'giggle',bbuing:'giggle',doki:'giggle',confess:'giggle',kiss:'giggle',sing:'giggle',
+  hop:'hop',hooray:'hop',jack:'hop',belly:'hop',win:'hop',wup:'hop',bounce:'bounce',step:'step',run:'step',shuffle:'step',kick:'step',wave:'wave',bye:'wave',disco:'wave',armout:'wave',pointfwd:'wave',jab:'wave',
+  clap:'clap',xcross:'clap',sway:'sway',tail:'sway',hip:'sway',hippose:'sway',wideA:'sway',butt4:'sway',backshake:'sway',heart:'earflap',bunny:'earflap',xup:'earflap',hairflip:'earflap'};
+function babyMove(key){if(BMOVE[key])return BMOVE[key];let h=0;for(const c of String(key))h=(h*31+c.charCodeAt(0))>>>0;return['bounce','sway','earflap','step'][h%4]}
+let BABY=null;
 /* 그리기 */
 const ease=x=>Math.exp(-x*14);
 let COVER_KEY=null;
@@ -406,7 +542,8 @@ function draw(t){
     const cv_=curCover(),cl=CLIPS[cv_.id];if(cl){const tc=t-coverShift;COVER_CLIP=cl[Math.max(0,Math.min(cl.length-1,Math.floor(tc*cv_.fps)))];since=5}}
   else if(useSound()&&val('mode')==='auto'){const pi=peakIndex(t);k=Math.max(0,pi-1);since=pi>0?t-auto.peaks[pi-1]:1;const nx=auto.peaks[pi];iv=nx&&pi>0?Math.max(0.2,nx-auto.peaks[pi-1]):0.5}
   else{k=Math.max(0,Math.floor(rel/iv));since=rel<0?1:rel-k*iv}
-  {const sg=segAt(k);MOTION={k,ph:Math.min(1,Math.max(0,since/iv)),still:!!(sg&&STILL.has(sg.m.key))}}
+  {const sg=segAt(k);MOTION={k,ph:Math.min(1,Math.max(0,since/iv)),still:!!(sg&&STILL.has(sg.m.key))};
+   const wh=val('who');BABY=wh.startsWith('b')?{who:wh,k,ph:Math.min(1,Math.max(0,since/iv)),move:sg?babyMove(sg.m.key):'bounce',t,energy:(auto.energy&&auto.energy.length)?1:0.8}:null}
   const bg=val('bg'),dur=+$('dur').value,dv=$('drop').value,close=$('closeup').checked;
   const kb=Math.max(0,Math.floor(rel/(60/(+$('bpm').value||120))));let dropping;
   if(dv==='auto'){const db=auto.drop>=0?auto.drop:Math.floor(dur*0.66*(+$('bpm').value||120)/60);dropping=kb>=db&&kb<db+8}else{const dropAt=+dv;dropping=dropAt>0&&t>=dur*dropAt}
@@ -416,8 +553,13 @@ function draw(t){
   let cap=null;
   if(dropping){const cols=4,cell=W/cols,rows=Math.ceil(H/cell)+1;
     for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){cx.fillStyle=(r+c)%2?'#fff':'#ffe3ea';cx.fillRect(c*cell,r*cell,cell,cell);
+      if(BABY){const kind=BABY.who==='bkk'?'kk':BABY.who==='bboth'?((r+c)%2?'kk':'pp'):'pp';Baby.draw(cx,c*cell+cell/2,r*cell+cell*0.92,cell*0.95,Baby.pose(BABY.move,k+r+c,BABY.ph,t+(r*3+c)*0.13,BABY.energy),t+(r+c)*0.07,kind);continue}
       const wh=val('who'),cw=wh==='both'?((r+c)%2?'kg':'pp'):wh;const [im]=imgAt(k+r+c,t,cw);drawChar(im,c*cell+cell/2,r*cell+cell/2,cell*0.9,since)}
     cap=imgAt(k,t)[1]}
+  else if(BABY){cap=imgAt(k,t,'pp')[1];if(close&&bg==='band'){cx.fillStyle='#fff';cx.fillRect(0,H*0.3,W,H*0.56)}
+    const foot=close?H*0.6+W*0.47:(bg==='band'?H*0.52+sz0*0.5:H*0.58+sz0*0.5);
+    if(BABY.who==='bboth'){const s2=close?W*0.56:Math.min(sz0*0.8,W*0.5);Baby.draw(cx,W*0.29,foot,s2,Baby.pose(BABY.move,k,BABY.ph,t,BABY.energy),t,'pp');Baby.draw(cx,W*0.71,foot,s2,Baby.pose(BABY.move,k+1,BABY.ph,t+0.37,BABY.energy),t+0.05,'kk')}
+    else Baby.draw(cx,W/2,foot,close?W*0.95:sz0,Baby.pose(BABY.move,k,BABY.ph,t,BABY.energy),t,BABY.who==='bkk'?'kk':'pp')}
   else{const wh=val('who'),[im,cp]=imgAt(k,t,wh==='kg'?'kg':'pp');cap=cp;
     if(close&&bg==='band'){cx.fillStyle='#fff';cx.fillRect(0,H*0.3,W,H*0.56)}
     const yC=close?H*0.6:(bg==='band'?H*0.52:H*0.58);
