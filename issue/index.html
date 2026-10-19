@@ -456,7 +456,7 @@ $('btnFind').onclick = async ()=>{
 구글 검색으로 ${$('period').value} 안에 **한국 밖(해외)**에서 사람들이 많이 보고 공유한 화제 이야기를 찾아라.
 찾을 곳: 레딧 인기글(r/nottheonion, r/UpliftingNews, r/mildlyinteresting, r/AmItheAsshole, r/interestingasfuck 등), 해외 언론 많이 본 기사, X·틱톡에서 바이럴된 이야기, 일본·미국·유럽·중국 화제 뉴스.
 ${cat} 8개를 골라라.
-고르는 기준: 한국 사람이 보고 "헐", "대박", "너라면?" 하며 친구에게 공유할 만한 것. 사진이 없어도 글만으로 흥미로운 것.
+고르는 기준: 한국 사람이 보고 "헐", "대박", "이게 실화?" 하며 친구에게 공유할 만한 것. 사진이 없어도 글만으로 흥미로운 것.
 빼야 할 것: 정치 선거, 전쟁, 대형 참사, 범죄 피해자 이야기, 확인 안 된 루머, 한국 국내 이슈.
 이미 다룬 주제(비슷한 것도 제외): ${history().slice(0,30).join(' / ') || '없음'}
 각 항목은 아래 키를 가진 JSON 객체로:
@@ -533,10 +533,10 @@ const TONES = {
 };
 function shapeRule(n, outro){
   return `{
- "titles": [ 표지 제목 후보 5개. 패턴을 하나씩 다르게: "호기심갭", "반전예고", "숫자·구체성", "너라면·공감", "몰랐던 사실". 각 {"pattern":"패턴이름", "title":"22자 이내, 가장 센 단어 하나를 ==이렇게== 감싸기", "sub":"30자 이내, 궁금증을 더 키우는 부제(답은 숨김)", "score": 클릭될 가능성 1~10} ],
+ "titles": [ 표지 제목 후보 5개. 패턴을 하나씩 다르게: "호기심갭", "반전예고", "숫자·구체성", "공감·감정이입", "몰랐던 사실". 각 {"pattern":"패턴이름", "title":"22자 이내, 가장 센 단어 하나를 ==이렇게== 감싸기", "sub":"30자 이내, 궁금증을 더 키우는 부제(답은 숨김)", "score": 클릭될 가능성 1~10} ],
  "cover": {"kicker":"작은 머리말(예: 해외이슈, 일본 화제, 美 레딧 난리)", "title":"titles 중 score가 가장 높은 제목", "sub":"그 제목의 부제"},
  "slides": [ ${n}개, 각 {"heading":"소제목 16자 이내", "body":"2~4문장, 90자 이내", "photo":"이 장면에 어울리는 무료 사진 검색어 영어 2~4단어(특정 인물 이름 X, 일반적인 장면)"} ],
- ${outro ? '"outro": {"title":"댓글 달고 싶어지는 질문 (예: 너라면 어떻게 할래?)", "body":"선택지나 생각해볼 거리 1~2문장"},' : ''}
+ ${outro ? '"outro": {"title":"댓글 달고 싶어지는 질문 (예: 여러분은 어느 쪽인가요?, 이거 선 넘은 거 맞죠?) — "너라면"이라는 말은 쓰지 마라", "body":"선택지나 생각해볼 거리 1~2문장"},' : ''}
  "cover_photo": "표지용 사진 검색어 영어 2~4단어",
  "caption": "인스타 캡션 3~6줄. 첫 줄은 후킹. 마지막 줄은 '출처: 매체이름'",
  "hashtags": ["해시태그 8~12개, #없이"]
@@ -558,6 +558,8 @@ $('btnMake').onclick = async ()=>{
 [이슈 자료]
 ${facts}
 
+[금지 표현] 제목·본문·질문·캡션 어디에도 "너라면", "너라면?", "너라면 어떻게" 를 쓰지 마라.
+
 [꼭 지킬 것 - 저작권·신뢰]
 - 원문 문장을 그대로 옮기거나 그대로 번역하지 마라. 사실만 뽑아서 완전히 내 말로 새로 써라. 따옴표 인용은 한 구절(10자) 이하로만.
 - ${$('useSearch').checked ? '구글 검색으로 사실관계를 확인하고 부족한 내용을 채워라. ' : ''}확인 안 되는 내용은 "~라고 알려졌다", "~라는 주장" 처럼 쓴다. 지어내지 마라.
@@ -571,7 +573,7 @@ ${facts}
   · 결과나 반전은 절대 제목에서 말하지 말고 숨겨라 ("~한 이유", "~의 최후", "~했더니 생긴 일", "결국 ~").
   · 구체적으로: 숫자·나이·금액·기간·나라를 넣어라 ("20년 만에", "월급 300 직원", "日 편의점").
   · 가장 센 단어를 맨 앞 5글자 안에. 감정 단어는 하나만 (소름, 눈물, 경악 같은 건 남발 금지).
-  · 독자를 끌어들여라: "너라면?", "이거 실화임?", "다들 몰랐던".
+  · 독자를 끌어들여라: "이거 실화임?", "다들 몰랐던", "아무도 예상 못 한". ("너라면"이라는 표현은 절대 쓰지 마라)
   · 단, 본문 내용과 다른 거짓·과장 낚시 금지. 제목이 약속한 궁금증은 본문에서 꼭 풀어줘라.
   · 나쁜 예: "호주 직장인의 퇴근 후 연락 문제" (설명만 함) → 좋은 예: "퇴근 후 카톡 보낸 ==상사==, 3일 뒤 생긴 일"
 - 부제는 궁금증을 한 번 더 키우되 답은 말하지 마라.
@@ -610,7 +612,7 @@ function normalize(d, n, outro){
   const out = {
     cover:{ kicker:s(d.cover&&d.cover.kicker)||'해외이슈', title:s(d.cover&&d.cover.title)||'제목', sub:s(d.cover&&d.cover.sub) },
     slides:(Array.isArray(d.slides)?d.slides:[]).slice(0,n).map(x=>({heading:s(x.heading), body:s(x.body), photo:s(x.photo)})),
-    outro: outro ? { title:s(d.outro&&d.outro.title)||'너라면 어떻게 할래?', body:s(d.outro&&d.outro.body) } : null,
+    outro: outro ? { title:s(d.outro&&d.outro.title)||'여러분 생각은 어때요?', body:s(d.outro&&d.outro.body) } : null,
     cover_photo:s(d.cover_photo),
     titles:(Array.isArray(d.titles)?d.titles:[]).filter(t=>t&&t.title).map(t=>({pattern:s(t.pattern), title:s(t.title), sub:s(t.sub), score:+t.score||0})).sort((a,b)=>b.score-a.score),
     caption:s(d.caption),
