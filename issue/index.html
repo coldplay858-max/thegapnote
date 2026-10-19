@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111114">
+<title>이슈 카드 메이커</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Noto+Serif+KR:wght@500;700;900&family=Noto+Serif+JP:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f1ec; --panel:#ffffff; --ink:#18181b; --muted:#6b6b73; --line:#e3e0d8;
+  --accent:#ff3b30; --soft:#f7f5f0; --ok:#1a7f4b; --err:#c62828;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Pretendard Variable",Pretendard,"Noto Sans JP",system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+header.top{position:sticky;top:0;z-index:5;background:#111114;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px}
+header.top h1{font-size:17px;margin:0;font-weight:800;letter-spacing:-.02em}
+header.top h1 span{color:var(--accent)}
+header.top .sub{font-size:12px;color:#a1a1aa;margin-left:auto}
+@media(max-width:520px){header.top .sub{display:none}}
+.wrap{max-width:1280px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.side,.main{min-width:0}
+@media(min-width:960px){.wrap{grid-template-columns:420px minmax(0,1fr);align-items:start}.side{position:sticky;top:64px;max-height:calc(100vh - 80px);overflow:auto}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.panel h2{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;font-size:12px}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 5px}
+label small{font-weight:400;color:var(--muted)}
+input[type=text],input[type=password],input[type=url],select,textarea{width:100%;font:inherit;font-size:14px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:var(--soft);color:var(--ink)}
+textarea{resize:vertical;min-height:70px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--ink);outline-offset:-1px;background:#fff}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.hint a{color:var(--ink)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{font:inherit;font-weight:700;font-size:14px;border:0;border-radius:10px;padding:12px 14px;background:var(--ink);color:#fff;cursor:pointer;width:100%}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.accent{background:var(--accent)}
+.btn.ghost{background:var(--soft);color:var(--ink);border:1px solid var(--line)}
+.btn.sm{width:auto;padding:8px 11px;font-size:13px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+details.settings summary{cursor:pointer;font-weight:700;list-style:none;display:flex;align-items:center;gap:8px}
+details.settings summary::-webkit-details-marker{display:none}
+details.settings summary .keyok{margin-left:auto;font-size:12px;font-weight:600}
+.tabs{display:flex;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;margin-bottom:12px}
+.tabs button{flex:1;font:inherit;font-size:13px;font-weight:700;border:0;border-radius:8px;padding:9px 6px;background:transparent;color:var(--muted);cursor:pointer}
+.tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 11px;cursor:pointer}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.status{font-size:13px;margin-top:8px;min-height:1em;color:var(--muted);white-space:pre-line}
+.status.err{color:var(--err)} .status.ok{color:var(--ok)}
+.issues{display:grid;gap:8px;margin-top:12px}
+.issue{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--soft);cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
+.issue:hover{border-color:var(--ink)}
+.issue.on{border:2px solid var(--accent);background:#fff}
+.issue b{display:block;font-size:14.5px;margin-bottom:4px}
+.issue p{margin:0;font-size:13px;color:#3f3f46}
+.issue .meta{font-size:12px;color:var(--muted);margin-top:6px}
+.picked{border:2px dashed var(--accent);border-radius:12px;padding:12px;font-size:13px;background:#fff8f7;display:none}
+.picked.show{display:block}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.thumbs div{position:relative}
+.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.thumbs button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:var(--ink);color:#fff;font-size:11px;cursor:pointer}
+.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.theme{border:2px solid var(--line);border-radius:12px;padding:6px;background:#fff;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--ink)}
+.theme.on{border-color:var(--accent)}
+.theme i{display:block;aspect-ratio:4/5;border-radius:8px;margin-bottom:5px;position:relative;overflow:hidden}
+.t-dark i{background:#0f0f12}
+.t-dark i::after{content:"";position:absolute;left:12%;right:20%;bottom:22%;height:10%;background:#fff;border-radius:2px;box-shadow:0 -14px 0 -4px var(--accent)}
+.t-paper i{background:#f4efe4;border:1px solid #ddd}
+.t-paper i::after{content:"";position:absolute;left:10%;right:10%;top:12%;height:3px;background:#1b1b1b;box-shadow:0 26px 0 6px #1b1b1b55}
+.t-photo i{background:linear-gradient(to bottom,#7d8fa3,#2a3340 70%,#0b0d10)}
+.t-photo i::after{content:"";position:absolute;left:12%;right:20%;bottom:16%;height:9%;background:#fff;border-radius:2px}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.sw{width:30px;height:30px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer}
+.sw.on{box-shadow:0 0 0 2px var(--ink)}
+.checks{display:flex;gap:14px;flex-wrap:wrap;font-size:14px}
+.checks label{display:flex;align-items:center;gap:6px;font-weight:500;margin:0}
+.photoOnly{display:none} body.photoTheme .photoOnly{display:block}
+/* 결과 */
+.empty{border:1px dashed #cfcac0;border-radius:14px;padding:50px 20px;text-align:center;color:var(--muted);background:#fbfaf7}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
+.langtabs{display:none;margin-bottom:12px}
+.langtabs.show{display:flex}
+.cards{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:10px}
+@media(min-width:960px){.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));overflow:visible}}
+.card{flex:0 0 78%;scroll-snap-align:start;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px}
+.card canvas{width:100%;height:auto;display:block;border-radius:8px;background:#ddd}
+.card .ed{margin-top:8px;display:grid;gap:6px}
+.card .ed textarea,.card .ed input{font-size:13px;padding:7px 9px;min-height:0}
+.card .ed textarea{min-height:64px}
+.card .ctl{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.card .credit{font-size:11px;color:var(--muted);margin-top:4px}
+.outbar{position:sticky;bottom:0;background:var(--bg);padding:10px 0 4px;display:none;gap:8px;flex-wrap:wrap}
+.outbar.show{display:flex}
+.outbar .btn{flex:1 1 140px}
+.sources{font-size:12.5px;color:var(--muted);margin-top:10px}
+.sources a{color:var(--ink);word-break:break-all}
+.notice{font-size:12px;background:#fff8e6;border:1px solid #f1dfa6;border-radius:10px;padding:9px 11px;margin-top:10px;color:#5b4a14}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+input[type=range]{width:100%}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>이슈 <span>카드</span> 메이커</h1>
+  <div class="sub">해외 화제 이슈 → 내 말로 새로 쓴 캐러셀</div>
+</header>
+
+<div class="wrap">
+<div class="side">
+
+  <!-- 설정 -->
+  <div class="panel">
+    <details class="settings" id="settingsBox">
+      <summary>⚙️ API 키 설정 <span class="keyok" id="keyState"></span></summary>
+      <label for="geminiKey">Gemini API 키 <small>(무료 · 글쓰기+검색)</small></label>
+      <input type="password" id="geminiKey" placeholder="AIza로 시작하는 키" autocomplete="off">
+      <div class="hint"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> 에서 구글 계정으로 무료 발급. <b>결제 카드는 연결하지 마세요</b> → 한도를 넘어도 돈이 안 나가요.</div>
+      <label for="gemModel">Gemini 모델</label>
+      <select id="gemModel">
+        <option value="gemini-2.5-flash">Gemini 2.5 Flash (추천 · 검색 무료 한도 넉넉)</option>
+        <option value="gemini-flash-latest">Gemini Flash 최신</option>
+        <option value="gemini-flash-lite-latest">Gemini Flash-Lite (빠름 · 한도 넉넉)</option>
+      </select>
+      <label for="photoSrc">무료 사진 가져올 곳 <small>(사진 디자인용)</small></label>
+      <select id="photoSrc">
+        <option value="none">사용 안 함 (내 사진만 직접 올리기)</option>
+        <option value="pexels">Pexels</option>
+        <option value="unsplash">Unsplash</option>
+      </select>
+      <div id="pexelsBox" style="display:none">
+        <label for="pexelsKey">Pexels API 키</label>
+        <input type="password" id="pexelsKey" autocomplete="off">
+        <div class="hint"><a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a> 에서 무료 발급</div>
+      </div>
+      <div id="unsplashBox" style="display:none">
+        <label for="unsplashKey">Unsplash Access Key</label>
+        <input type="password" id="unsplashKey" autocomplete="off">
+        <div class="hint"><a href="https://unsplash.com/oauth/applications" target="_blank" rel="noopener">unsplash.com/oauth/applications</a> → New Application → Access Key 복사</div>
+      </div>
+      <label for="handle">내 계정 이름 <small>(카드 아래에 작게 표시)</small></label>
+      <input type="text" id="handle" placeholder="@my_issue">
+      <div class="hint">키는 이 기기 브라우저에만 저장돼요. 폰과 PC는 따로 넣어야 해요.</div>
+    </details>
+  </div>
+
+  <!-- 1. 이슈 고르기 -->
+  <div class="panel">
+    <h2><span class="num">1</span>이슈 고르기</h2>
+    <div class="tabs" id="srcTabs">
+      <button type="button" class="on" data-tab="find">🔥 해외 인기 이슈 찾기</button>
+      <button type="button" data-tab="mine">✍️ 내가 본 글 넣기</button>
+    </div>
+
+    <div id="tab-find">
+      <div class="chips" id="cats"></div>
+      <label for="period">기간</label>
+      <select id="period">
+        <option value="최근 1주">최근 1주</option>
+        <option value="최근 2주" selected>최근 2주</option>
+        <option value="최근 1달">최근 1달</option>
+      </select>
+      <div class="tools"><button class="btn" id="btnFind" type="button">🔍 인기 해외 이슈 찾기</button></div>
+      <div class="status" id="findStatus"></div>
+      <div class="issues" id="issueList"></div>
+      <div class="sources" id="findSources"></div>
+    </div>
+
+    <div id="tab-mine" hidden>
+      <label for="mineText">글 내용 <small>(복사해서 붙여넣기 · 핵심만 적어도 OK)</small></label>
+      <textarea id="mineText" rows="5" placeholder="카페·사이트에서 본 인기 글 내용을 붙여넣으세요"></textarea>
+      <label for="mineUrl">링크 <small>(선택 · 출처 표시용)</small></label>
+      <input type="url" id="mineUrl" placeholder="https://">
+      <label>캡처 사진 <small>(선택 · 내용 읽기용, 카드엔 안 들어가요)</small></label>
+      <input type="file" id="mineShots" accept="image/*" multiple>
+      <div class="thumbs" id="shotThumbs"></div>
+      <div class="tools"><button class="btn" id="btnUseMine" type="button">이 내용으로 쓰기</button></div>
+      <div class="notice">원문 문장은 그대로 옮기지 않고 <b>사실만 뽑아서 새로 써요.</b> 원본 사진·캡처는 카드에 넣지 않아요. (저작권 안전)</div>
+    </div>
+
+    <div class="picked" id="picked" style="margin-top:12px"></div>
+  </div>
+
+  <!-- 2. 만들기 -->
+  <div class="panel">
+    <h2><span class="num">2</span>캐러셀 만들기</h2>
+    <div class="row">
+      <div>
+        <label for="tone">말투</label>
+        <select id="tone">
+          <option value="ssul">친구한테 썰 푸는 반말</option>
+          <option value="news">깔끔한 뉴스 존댓말</option>
+          <option value="punch">짧고 굵게 (임팩트)</option>
+        </select>
+      </div>
+      <div>
+        <label for="count">본문 장수</label>
+        <select id="count">
+          <option value="1">1장</option><option value="2">2장</option><option value="3">3장</option>
+          <option value="4" selected>4장</option><option value="5">5장</option><option value="6">6장</option>
+        </select>
+      </div>
+    </div>
+    <div class="checks" style="margin-top:12px">
+      <label><input type="checkbox" id="useOutro" checked> 마지막 질문 장 넣기</label>
+      <label><input type="checkbox" id="useSearch" checked> 검색으로 내용 보강</label>
+    </div>
+    <label>같이 만들 언어</label>
+    <div class="checks">
+      <label><input type="checkbox" checked disabled> 한국어</label>
+      <label><input type="checkbox" id="langJa"> 日本語</label>
+      <label><input type="checkbox" id="langEn"> English</label>
+    </div>
+
+    <label>디자인</label>
+    <div class="themes" id="themes">
+      <button type="button" class="theme t-dark on" data-theme="dark"><i></i>뉴스 다크</button>
+      <button type="button" class="theme t-paper" data-theme="paper"><i></i>신문 페이퍼</button>
+      <button type="button" class="theme t-photo" data-theme="photo"><i></i>사진 배경</button>
+    </div>
+    <div class="photoOnly">
+      <label for="dim">사진 어둡게 <small id="dimVal"></small></label>
+      <input type="range" id="dim" min="0" max="90" value="55">
+      <div class="hint">사진은 설정에서 고른 무료 사진(Pexels/Unsplash)이 자동으로 들어가요. 카드마다 내 사진으로 바꿀 수도 있어요.</div>
+    </div>
+    <label>포인트 색</label>
+    <div class="swatches" id="swatches"></div>
+
+    <div class="tools"><button class="btn accent" id="btnMake" type="button" disabled>✨ 캐러셀 만들기</button></div>
+    <div class="status" id="makeStatus"></div>
+  </div>
+</div>
+
+<!-- 3. 결과 -->
+<div class="main">
+  <div class="tabs langtabs" id="langTabs"></div>
+  <div class="empty" id="empty"><b>① 이슈를 고르고 ② 캐러셀 만들기를 누르세요</b>카드 글은 아래 칸에서 바로 고칠 수 있고, PNG로 저장하거나 폰에서 인스타로 바로 공유할 수 있어요.</div>
+  <div class="cards" id="cards"></div>
+  <div class="panel" id="capPanel" style="display:none;margin-top:14px">
+    <h2>캡션 · 해시태그</h2>
+    <textarea id="caption" rows="9"></textarea>
+    <div class="tools"><button class="btn sm ghost" id="btnCopy" type="button">📋 캡션 복사</button></div>
+    <div class="sources" id="makeSources"></div>
+  </div>
+  <div class="outbar" id="outbar">
+    <button class="btn" id="btnShare" type="button">📤 폰에 저장·인스타 공유</button>
+    <button class="btn ghost" id="btnZip" type="button">⬇️ 전체 ZIP 저장</button>
+  </div>
+  <div class="status" id="outStatus"></div>
+</div>
+</div>
+
+<script>
+/* ============ 기본 ============ */
+const $ = id => document.getElementById(id);
+const W = 1080, H = 1350, PAD = 84;
+const CATS = ['전체 랜덤','황당·신기','감동·훈훈','연애·사연','동물','연예·셀럽','직장·돈','음식·여행','테크·AI','논란·토론'];
+const COLORS = ['#ff3b30','#ffcc00','#2f6bff','#00c27a','#ff5fa2','#8b5cf6','#ff8a00'];
+const LANG_NAME = { ko:'한국어', ja:'日本語', en:'English' };
+const SWIPE = { ko:'넘겨보기 →', ja:'スワイプ →', en:'SWIPE →' };
+const state = {
+  cat:'전체 랜덤', issues:[], picked:null, shots:[],
+  theme:'dark', accent:COLORS[0],
+  data:{}, lang:'ko', langs:['ko'], photos:[], sources:[], busy:false
+};
+
+function store(k,v){ try{ localStorage.setItem('icm_'+k, v); }catch(e){} }
+function load(k){ try{ return localStorage.getItem('icm_'+k) || ''; }catch(e){ return ''; } }
+function loadJSON(k,d){ try{ return JSON.parse(load(k)) || d; }catch(e){ return d; } }
+
+['geminiKey','gemModel','photoSrc','pexelsKey','unsplashKey','handle','tone','count','period'].forEach(id=>{
+  const v = load(id); if(v) $(id).value = v;
+  $(id).addEventListener('change', ()=>{ store(id, $(id).value); refreshSettings(); });
+});
+['useOutro','useSearch','langJa','langEn'].forEach(id=>{
+  const v = load(id); if(v) $(id).checked = v==='1';
+  $(id).addEventListener('change', ()=>store(id, $(id).checked?'1':'0'));
+});
+function refreshSettings(){
+  $('pexelsBox').style.display = $('photoSrc').value==='pexels' ? 'block':'none';
+  $('unsplashBox').style.display = $('photoSrc').value==='unsplash' ? 'block':'none';
+  const ok = !!$('geminiKey').value.trim();
+  $('keyState').textContent = ok ? '✅ 키 입력됨' : '⚠️ Gemini 키 필요';
+  $('keyState').style.color = ok ? 'var(--ok)' : 'var(--err)';
+}
+refreshSettings();
+if(!$('geminiKey').value.trim()) $('settingsBox').open = true;
+
+function setStatus(id, msg, cls){ const s=$(id); s.className='status'+(cls?' '+cls:''); s.innerHTML=msg||''; }
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* 탭 */
+$('srcTabs').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  [...$('srcTabs').children].forEach(x=>x.classList.toggle('on', x===b));
+  $('tab-find').hidden = b.dataset.tab!=='find';
+  $('tab-mine').hidden = b.dataset.tab!=='mine';
+});
+/* 카테고리 */
+state.cat = load('cat') || CATS[0];
+$('cats').innerHTML = CATS.map(c=>`<button type="button" class="chip${c===state.cat?' on':''}">${c}</button>`).join('');
+$('cats').addEventListener('click', e=>{
+  const b = e.target.closest('.chip'); if(!b) return;
+  state.cat = b.textContent; store('cat', state.cat);
+  [...$('cats').children].forEach(x=>x.classList.toggle('on', x===b));
+});
+/* 디자인 */
+state.theme = load('theme') || 'dark';
+state.accent = load('accent') || COLORS[0];
+function applyTheme(){
+  [...$('themes').children].forEach(x=>x.classList.toggle('on', x.dataset.theme===state.theme));
+  document.body.classList.toggle('photoTheme', state.theme==='photo');
+  document.documentElement.style.setProperty('--accent', state.accent);
+  $('swatches').innerHTML = COLORS.map(c=>`<button type="button" class="sw${c===state.accent?' on':''}" style="background:${c}" data-c="${c}" aria-label="색 ${c}"></button>`).join('');
+}
+applyTheme();
+$('themes').addEventListener('click', async e=>{
+  const b = e.target.closest('.theme'); if(!b) return;
+  state.theme = b.dataset.theme; store('theme', state.theme); applyTheme();
+  if(state.theme==='photo' && hasCards()) await fillPhotos(false);
+  renderAll();
+});
+$('swatches').addEventListener('click', e=>{
+  const b = e.target.closest('.sw'); if(!b) return;
+  state.accent = b.dataset.c; store('accent', state.accent); applyTheme(); renderAll();
+});
+$('dim').value = load('dim') || 55;
+const showDim = ()=>{ $('dimVal').textContent = $('dim').value+'%'; };
+showDim();
+$('dim').addEventListener('input', ()=>{ showDim(); store('dim',$('dim').value); renderAll(); });
+
+/* ============ Gemini ============ */
+function fetchTimeout(url, opt, ms){
+  const c = new AbortController(); const t = setTimeout(()=>c.abort(), ms||90000);
+  return fetch(url, {...opt, signal:c.signal}).finally(()=>clearTimeout(t));
+}
+async function gemini(prompt, opt){
+  opt = opt || {};
+  const key = $('geminiKey').value.trim();
+  if(!key){ $('settingsBox').open = true; throw new Error('먼저 위쪽 "⚙️ API 키 설정"을 눌러 Gemini 키를 넣어 주세요.'); }
+  const parts = [{text:prompt}];
+  (opt.images||[]).forEach(im=>parts.push({inline_data:{mime_type:im.mime, data:im.data}}));
+  const models = [$('gemModel').value,'gemini-2.5-flash','gemini-flash-latest','gemini-flash-lite-latest'].filter((m,i,a)=>a.indexOf(m)===i);
+  const toolSets = opt.tools ? [opt.tools, null] : [null];   // 도구가 안 되면 도구 없이 한 번 더
+  let last = '';
+  for(const tools of toolSets){
+    for(const m of models){
+      const body = { contents:[{role:'user', parts}], generationConfig:{ temperature: opt.temp ?? 0.9 } };
+      if(tools) body.tools = tools;
+      else if(opt.json) body.generationConfig.responseMimeType = 'application/json';
+      let r, j;
+      try{
+        r = await fetchTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`,
+          {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)}, 120000);
+        j = await r.json().catch(()=>({}));
+      }catch(e){ last = e.name==='AbortError' ? '응답이 너무 오래 걸렸어요' : '인터넷 연결을 확인해 주세요'; continue; }
+      if(r.ok){
+        const cand = (j.candidates||[])[0] || {};
+        const text = ((cand.content&&cand.content.parts)||[]).map(p=>p.text||'').join('');
+        if(!text){ last = '빈 응답 (안전 필터에 걸렸을 수 있어요)'; continue; }
+        const gm = cand.groundingMetadata || {};
+        const sources = (gm.groundingChunks||[]).map(c=>c.web).filter(Boolean).map(w=>({title:w.title||w.domain||'출처', uri:w.uri}));
+        return { text, sources };
+      }
+      last = (j.error && j.error.message) || ('HTTP '+r.status);
+      if(r.status===400 && /API key/i.test(last)) throw new Error('Gemini 키가 틀렸어요. aistudio에서 키를 다시 복사해 넣어 주세요.');
+      if(r.status===403) throw new Error('이 키로는 Gemini를 쓸 수 없어요. aistudio.google.com/apikey 에서 새 키를 만들어 주세요.');
+      if(r.status===429) throw new Error('Gemini 무료 사용량이 잠깐 꽉 찼어요. 1분 뒤 다시 누르거나, 설정에서 모델을 Flash-Lite로 바꿔 보세요.\n(결제 카드를 안 연결했다면 돈은 나가지 않아요)');
+      if(r.status===404) continue;      // 이 모델 없음 → 다음 모델
+      if(r.status===400 && tools) break; // 이 모델에서 도구 안 됨 → 도구 없이
+      if(r.status>=500) continue;
+      break;
+    }
+  }
+  throw new Error('Gemini 오류: '+last);
+}
+function parseJSON(t){
+  t = String(t).replace(/```(?:json)?/gi,'').trim();
+  try{ return JSON.parse(t); }catch(e){}
+  const a = Math.min(...['[','{'].map(c=>{ const i=t.indexOf(c); return i<0?1e9:i; }));
+  const close = t[a]==='[' ? ']' : '}';
+  const b = t.lastIndexOf(close);
+  if(a<1e9 && b>a){ try{ return JSON.parse(t.slice(a,b+1)); }catch(e){} }
+  throw new Error('AI 답을 읽지 못했어요. 한 번 더 눌러 주세요.');
+}
+const uniqSources = arr => { const seen=new Set(); return (arr||[]).filter(s=>s&&s.uri&&!seen.has(s.uri)&&seen.add(s.uri)); };
+function sourcesHTML(list){
+  list = uniqSources(list); if(!list.length) return '';
+  return '검색에 쓴 출처: ' + list.slice(0,8).map(s=>`<a href="${esc(s.uri)}" target="_blank" rel="noopener">${esc(s.title)}</a>`).join(' · ');
+}
+
+/* ============ 1-A. 해외 인기 이슈 찾기 ============ */
+const history = () => loadJSON('history', []);
+function addHistory(t){ const h = history().filter(x=>x!==t); h.unshift(t); store('history', JSON.stringify(h.slice(0,60))); }
+
+$('btnFind').onclick = async ()=>{
+  if(state.busy) return;
+  const btn = $('btnFind'); btn.disabled = true; state.busy = true;
+  setStatus('findStatus','<span class="spin"></span>해외 커뮤니티·뉴스에서 인기 이슈를 찾는 중… (20~40초)');
+  $('issueList').innerHTML = ''; $('findSources').innerHTML = '';
+  const cat = state.cat==='전체 랜덤' ? '분야 상관없이 골고루 섞어서' : `"${state.cat}" 분야 위주로`;
+  const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+  const prompt = `오늘은 ${today}이다. 너는 한국 인스타그램 "해외 이슈" 카드뉴스 계정의 에디터다.
+구글 검색으로 ${$('period').value} 안에 **한국 밖(해외)**에서 사람들이 많이 보고 공유한 화제 이야기를 찾아라.
+찾을 곳: 레딧 인기글(r/nottheonion, r/UpliftingNews, r/mildlyinteresting, r/AmItheAsshole, r/interestingasfuck 등), 해외 언론 많이 본 기사, X·틱톡에서 바이럴된 이야기, 일본·미국·유럽·중국 화제 뉴스.
+${cat} 8개를 골라라.
+고르는 기준: 한국 사람이 보고 "헐", "대박", "너라면?" 하며 친구에게 공유할 만한 것. 사진이 없어도 글만으로 흥미로운 것.
+빼야 할 것: 정치 선거, 전쟁, 대형 참사, 범죄 피해자 이야기, 확인 안 된 루머, 한국 국내 이슈.
+이미 다룬 주제(비슷한 것도 제외): ${history().slice(0,30).join(' / ') || '없음'}
+각 항목은 아래 키를 가진 JSON 객체로:
+"title": 한국어 짧은 제목(25자 이내),
+"summary": 무슨 일인지 사실 위주 2~3문장 (한국어, 내 말로),
+"why": 왜 화제인지 1문장,
+"country": 나라,
+"source": 보도한 매체나 사이트 이름,
+"url": 기사나 글 주소(모르면 빈칸),
+"score": 공유될 가능성 1~10
+JSON 배열만 출력하고 다른 말은 쓰지 마라.`;
+  try{
+    const r = await gemini(prompt, {tools:[{google_search:{}}], temp:1});
+    let arr = parseJSON(r.text);
+    if(!Array.isArray(arr)) arr = arr.items || arr.issues || [];
+    arr = arr.filter(x=>x && x.title).sort((a,b)=>(b.score||0)-(a.score||0));
+    if(!arr.length) throw new Error('이슈를 못 찾았어요. 분야를 바꿔서 다시 눌러 주세요.');
+    state.issues = arr; state.findSources = r.sources;
+    $('issueList').innerHTML = arr.map((x,i)=>`<button type="button" class="issue" data-i="${i}">
+      <b>${esc(x.title)}</b><p>${esc(x.summary)}</p>
+      <div class="meta">${x.country?'🌍 '+esc(x.country)+' · ':''}${esc(x.source||'')}${x.why?' · 💬 '+esc(x.why):''}</div></button>`).join('');
+    $('findSources').innerHTML = sourcesHTML(r.sources);
+    setStatus('findStatus', `✅ ${arr.length}개 찾았어요. 마음에 드는 걸 누르세요.`, 'ok');
+  }catch(e){ setStatus('findStatus', esc(e.message), 'err'); }
+  btn.disabled = false; state.busy = false;
+};
+$('issueList').addEventListener('click', e=>{
+  const b = e.target.closest('.issue'); if(!b) return;
+  [...$('issueList').children].forEach(x=>x.classList.toggle('on', x===b));
+  const x = state.issues[+b.dataset.i];
+  pick({ title:x.title, summary:x.summary, why:x.why, country:x.country, source:x.source, url:x.url, images:[], sources:state.findSources||[] });
+});
+
+/* ============ 1-B. 내가 본 글 넣기 ============ */
+async function shrinkImage(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await loadImg(url);
+    const s = Math.min(1, 1400/Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth*s); c.height = Math.round(img.naturalHeight*s);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    const d = c.toDataURL('image/jpeg', .85);
+    return { mime:'image/jpeg', data:d.split(',')[1], preview:d };
+  } finally { URL.revokeObjectURL(url); }
+}
+$('mineShots').addEventListener('change', async e=>{
+  for(const f of [...e.target.files].slice(0, 6-state.shots.length)){ try{ state.shots.push(await shrinkImage(f)); }catch(err){} }
+  e.target.value = ''; drawThumbs();
+});
+function drawThumbs(){
+  $('shotThumbs').innerHTML = state.shots.map((s,i)=>`<div><img src="${s.preview}" alt="캡처 ${i+1}"><button type="button" data-i="${i}" aria-label="삭제">✕</button></div>`).join('');
+}
+$('shotThumbs').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; state.shots.splice(+b.dataset.i,1); drawThumbs(); });
+$('btnUseMine').onclick = ()=>{
+  const text = $('mineText').value.trim(), url = $('mineUrl').value.trim();
+  if(!text && !url && !state.shots.length){ alert('글 내용을 붙여넣거나, 링크나 캡처를 넣어 주세요.'); return; }
+  pick({ title:'', summary:text, url, images:state.shots.map(s=>({mime:s.mime,data:s.data})), mine:true, sources:[] });
+};
+
+function pick(issue){
+  state.picked = issue;
+  $('picked').classList.add('show');
+  $('picked').innerHTML = `<b>선택한 이슈</b><br>${issue.title?esc(issue.title)+'<br>':''}<span style="color:#555">${esc((issue.summary||'').slice(0,140))}${(issue.summary||'').length>140?'…':''}</span>${issue.images&&issue.images.length?`<br>📷 캡처 ${issue.images.length}장`:''}${issue.url?`<br>🔗 ${esc(issue.url)}`:''}`;
+  $('btnMake').disabled = false;
+  setStatus('makeStatus','이제 아래에서 말투·장수·디자인을 고르고 <b>캐러셀 만들기</b>를 누르세요.');
+  if(matchMedia('(max-width:959px)').matches) $('btnMake').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+/* ============ 2. 캐러셀 글 만들기 ============ */
+const TONES = {
+  ssul: '친구한테 썰 푸는 편한 반말. "있잖아", "근데 여기서 반전", "ㄹㅇ" 같은 말맛. 상황이 눈앞에 그려지게.',
+  news: '깔끔한 뉴스 존댓말(~습니다/~했어요 섞지 말고 ~했습니다). 짧은 문장, 사실 위주.',
+  punch: '아주 짧고 굵게. 한 문장 15자 안팎. 감탄과 반전 위주. 반말.'
+};
+function shapeRule(n, outro){
+  return `{
+ "cover": {"kicker":"작은 머리말(예: 해외이슈, 일본 화제, 美 레딧 난리)", "title":"표지 제목 22자 이내, 가장 센 단어 하나를 ==이렇게== 감싸기", "sub":"표지 부제 1문장 30자 이내(궁금증 유발)"},
+ "slides": [ ${n}개, 각 {"heading":"소제목 16자 이내", "body":"2~4문장, 90자 이내", "photo":"이 장면에 어울리는 무료 사진 검색어 영어 2~4단어(특정 인물 이름 X, 일반적인 장면)"} ],
+ ${outro ? '"outro": {"title":"댓글 달고 싶어지는 질문 (예: 너라면 어떻게 할래?)", "body":"선택지나 생각해볼 거리 1~2문장"},' : ''}
+ "cover_photo": "표지용 사진 검색어 영어 2~4단어",
+ "caption": "인스타 캡션 3~6줄. 첫 줄은 후킹. 마지막 줄은 '출처: 매체이름'",
+ "hashtags": ["해시태그 8~12개, #없이"]
+}`;
+}
+
+$('btnMake').onclick = async ()=>{
+  if(state.busy || !state.picked) return;
+  const p = state.picked, n = +$('count').value, outro = $('useOutro').checked;
+  const btn = $('btnMake'); btn.disabled = true; state.busy = true;
+  setStatus('makeStatus','<span class="spin"></span>내용 정리하고 카드 글 쓰는 중… (20~60초)');
+  const facts = [
+    p.title && `제목: ${p.title}`, p.summary && `내용: ${p.summary}`, p.why && `화제 이유: ${p.why}`,
+    p.country && `나라: ${p.country}`, p.source && `출처 매체: ${p.source}`, p.url && `링크: ${p.url}`,
+    p.images && p.images.length && `(첨부한 캡처 ${p.images.length}장에 원문이 있음. 내용만 읽어라)`
+  ].filter(Boolean).join('\n');
+  const prompt = `너는 한국 인스타그램 "해외 이슈" 카드뉴스 계정의 에디터다. 아래 이슈로 캐러셀(여러 장 카드) 글을 써라.
+
+[이슈 자료]
+${facts}
+
+[꼭 지킬 것 - 저작권·신뢰]
+- 원문 문장을 그대로 옮기거나 그대로 번역하지 마라. 사실만 뽑아서 완전히 내 말로 새로 써라. 따옴표 인용은 한 구절(10자) 이하로만.
+- ${$('useSearch').checked ? '구글 검색으로 사실관계를 확인하고 부족한 내용을 채워라. ' : ''}확인 안 되는 내용은 "~라고 알려졌다", "~라는 주장" 처럼 쓴다. 지어내지 마라.
+- 일반인의 실명·얼굴·주소 같은 신상은 쓰지 마라 ("30대 남성 A씨"처럼). 유명인·기업 이름은 써도 된다.
+- 혐오, 조롱, 특정 나라 비하 금지.
+- "팔로우하면 다음편" 같은 낚시 문구 금지.
+
+[글 스타일]
+- 말투: ${TONES[$('tone').value]}
+- 표지는 넘겨보고 싶게. 본문은 1장부터 순서대로 이야기가 이어지게(배경 → 사건 → 반전/결과 → 반응).
+- 본문이 1장이면 그 한 장에 핵심을 다 담아라.
+- 한국 사람 눈높이로: 낯선 나라 문화는 한 줄로 쉽게 설명.
+
+[출력 형식] 아래 JSON 하나만 출력. 다른 말 금지.
+${shapeRule(n, outro)}`;
+  try{
+    const useTools = $('useSearch').checked ? [{google_search:{}}] : (p.url ? [{url_context:{}}] : null);
+    const tools = $('useSearch').checked && p.url ? [{google_search:{}},{url_context:{}}] : useTools;
+    const r = await gemini(prompt, {tools, json:true, images:p.images, temp:0.9});
+    const d = normalize(parseJSON(r.text), n, outro);
+    state.data = { ko:d }; state.langs = ['ko']; state.lang = 'ko';
+    state.sources = uniqSources([...(p.sources||[]), ...r.sources]);
+    state.photos = [];
+    if(p.title) addHistory(p.title); else addHistory(d.cover.title.replace(/==/g,''));
+    const want = [$('langJa').checked&&'ja', $('langEn').checked&&'en'].filter(Boolean);
+    if(state.theme==='photo'){ setStatus('makeStatus','<span class="spin"></span>어울리는 무료 사진 찾는 중…'); await fillPhotos(false); }
+    renderAll(true);
+    if(want.length){
+      setStatus('makeStatus','<span class="spin"></span>한국어 완성! '+want.map(l=>LANG_NAME[l]).join('·')+' 버전 만드는 중…');
+      await translateTo(want);
+    }
+    setStatus('makeStatus','✅ 완성! 오른쪽(폰은 아래) 카드에서 글을 바로 고칠 수 있어요.','ok');
+    if(matchMedia('(max-width:959px)').matches) $('cards').scrollIntoView({behavior:'smooth'});
+  }catch(e){ setStatus('makeStatus', esc(e.message), 'err'); }
+  btn.disabled = false; state.busy = false;
+};
+
+function normalize(d, n, outro){
+  const s = v => String(v==null?'':v).trim();
+  const out = {
+    cover:{ kicker:s(d.cover&&d.cover.kicker)||'해외이슈', title:s(d.cover&&d.cover.title)||'제목', sub:s(d.cover&&d.cover.sub) },
+    slides:(Array.isArray(d.slides)?d.slides:[]).slice(0,n).map(x=>({heading:s(x.heading), body:s(x.body), photo:s(x.photo)})),
+    outro: outro ? { title:s(d.outro&&d.outro.title)||'너라면 어떻게 할래?', body:s(d.outro&&d.outro.body) } : null,
+    cover_photo:s(d.cover_photo),
+    caption:s(d.caption),
+    hashtags:(Array.isArray(d.hashtags)?d.hashtags:String(d.hashtags||'').split(/[\s,]+/)).map(h=>s(h).replace(/^#/,'')).filter(Boolean)
+  };
+  if(!out.slides.length) out.slides = [{heading:'', body:'', photo:''}];
+  return out;
+}
+
+/* ============ 일본어·영어 ============ */
+async function translateTo(langs){
+  const ko = state.data.ko;
+  const src = { cover:ko.cover, slides:ko.slides.map(x=>({heading:x.heading, body:x.body})), outro:ko.outro, caption:ko.caption, hashtags:ko.hashtags };
+  for(const l of langs){
+    const guide = l==='ja'
+      ? '일본어. 일본 인스타·X에서 자연스러운 말투(표지/소제목은 짧게, 본문은 です・ます 대신 친근한 구어체도 OK). 한국 원화·지명 등은 일본 독자에게 맞게. 해시태그는 일본어로 새로 만들어라(#海外ニュース 등).'
+      : '영어. 미국 인스타 바이럴 계정처럼 짧고 자연스럽게. 해시태그는 영어로 새로 만들어라.';
+    const prompt = `아래 카드뉴스 JSON을 ${guide}
+규칙: 직역 말고 그 나라 사람이 쓴 것처럼. ==강조== 표시는 같은 의미의 단어에 그대로 유지. kicker도 번역(예: 海外ニュース / WORLD BUZZ). caption 마지막 '출처' 줄도 번역. 키 구조는 그대로, JSON만 출력.
+${JSON.stringify(src)}`;
+    try{
+      const r = await gemini(prompt, {json:true, temp:0.6});
+      const t = parseJSON(r.text);
+      const d = normalize(t, ko.slides.length, !!ko.outro);
+      d.slides.forEach((x,i)=>{ x.photo = ko.slides[i] ? ko.slides[i].photo : ''; });
+      while(d.slides.length < ko.slides.length) d.slides.push({...ko.slides[d.slides.length]});
+      d.cover_photo = ko.cover_photo;
+      state.data[l] = d;
+      if(!state.langs.includes(l)) state.langs.push(l);
+      renderLangTabs();
+    }catch(e){ setStatus('outStatus', LANG_NAME[l]+' 만들기 실패: '+esc(e.message), 'err'); }
+  }
+}
+
+/* ============ 사진 ============ */
+function loadImg(src, cors){
+  return new Promise((res,rej)=>{ const i = new Image(); if(cors) i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=()=>rej(new Error('사진을 못 불러왔어요')); i.src=src; });
+}
+async function searchPhotos(q){
+  const srcType = $('photoSrc').value;
+  if(!q) return [];
+  if(srcType==='pexels'){
+    const key = $('pexelsKey').value.trim(); if(!key) throw new Error('설정에서 Pexels 키를 넣어 주세요.');
+    const r = await fetchTimeout('https://api.pexels.com/v1/search?per_page=15&orientation=portrait&query='+encodeURIComponent(q), {headers:{Authorization:key}}, 20000);
+    if(r.status===401||r.status===403) throw new Error('Pexels 키가 틀렸어요.');
+    const j = await r.json();
+    return (j.photos||[]).map(p=>({ url:p.src.large2x||p.src.portrait, credit:`Photo: ${p.photographer} / Pexels` }));
+  }
+  if(srcType==='unsplash'){
+    const key = $('unsplashKey').value.trim(); if(!key) throw new Error('설정에서 Unsplash 키를 넣어 주세요.');
+    const r = await fetchTimeout('https://api.unsplash.com/search/photos?per_page=15&orientation=portrait&query='+encodeURIComponent(q)+'&client_id='+encodeURIComponent(key), {}, 20000);
+    if(r.status===401||r.status===403) throw new Error('Unsplash 키가 틀렸어요.');
+    const j = await r.json();
+    return (j.results||[]).map(p=>({ url:p.urls.regular, credit:`Photo: ${p.user.name} / Unsplash`, ping:p.links.download_location+'&client_id='+encodeURIComponent(key) }));
+  }
+  return [];
+}
+function photoQueries(){
+  const ko = state.data.ko; if(!ko) return [];
+  const q = [ko.cover_photo || (ko.slides[0]&&ko.slides[0].photo)];
+  ko.slides.forEach(s=>q.push(s.photo || ko.cover_photo));
+  if(ko.outro) q.push(ko.cover_photo || 'people thinking');
+  return q;
+}
+async function fillPhotos(force){
+  if($('photoSrc').value==='none') return;
+  const qs = photoQueries();
+  const cache = {};
+  const used = new Set(state.photos.filter(Boolean).map(p=>p.url));
+  for(let i=0;i<qs.length;i++){
+    if(!force && state.photos[i]) continue;
+    try{
+      const q = qs[i];
+      if(!cache[q]) cache[q] = await searchPhotos(q);
+      const list = cache[q].filter(x=>!used.has(x.url));
+      if(!list.length) continue;
+      const pick = list[Math.floor(Math.random()*Math.min(list.length,6))];
+      await setPhoto(i, pick); used.add(pick.url);
+    }catch(e){ setStatus('outStatus', esc(e.message), 'err'); return; }
+  }
+}
+async function setPhoto(i, p){
+  const img = await loadImg(p.url, true);
+  state.photos[i] = { img, url:p.url, credit:p.credit, list:null };
+  if(p.ping) fetch(p.ping).catch(()=>{});
+}
+async function shufflePhoto(i){
+  const q = photoQueries()[i];
+  setStatus('outStatus','<span class="spin"></span>다른 사진 찾는 중…');
+  try{
+    const list = (await searchPhotos(q)).filter(x=>!state.photos.some(p=>p&&p.url===x.url));
+    if(!list.length) throw new Error('다른 사진이 없어요. 내 사진을 올려 보세요.');
+    await setPhoto(i, list[Math.floor(Math.random()*list.length)]);
+    setStatus('outStatus',''); renderAll();
+  }catch(e){ setStatus('outStatus', esc(e.message), 'err'); }
+}
+async function uploadPhoto(i, file){
+  const img = await loadImg(URL.createObjectURL(file));
+  state.photos[i] = { img, url:'mine', credit:'' };
+  renderAll();
+}
+
+/* ============ 카드 그리기 ============ */
+function fonts(lang){
+  const sans = lang==='ja' ? '"Noto Sans JP","Pretendard Variable",sans-serif' : '"Pretendard Variable",Pretendard,"Noto Sans JP",sans-serif';
+  const serif = lang==='ja' ? '"Noto Serif JP","Noto Serif KR",serif' : '"Noto Serif KR","Noto Serif JP",serif';
+  return { sans, serif };
+}
+async function ensureFonts(lang){
+  const d = state.data[lang]; if(!d) return;
+  const all = JSON.stringify(d) + '0123456789/→?!';
+  const f = fonts(lang);
+  const list = [`900 60px ${f.sans}`,`800 60px ${f.sans}`,`700 60px ${f.sans}`,`500 40px ${f.sans}`,`400 40px ${f.sans}`,`900 60px ${f.serif}`,`700 40px ${f.serif}`,`500 40px ${f.serif}`];
+  try{ await Promise.all(list.map(x=>document.fonts.load(x, all))); }catch(e){}
+}
+function parseHL(s){
+  const runs = []; const re = /==(.+?)==|\*\*(.+?)\*\*/g; let m, last = 0;
+  s = String(s||'');
+  while((m = re.exec(s))){ if(m.index>last) runs.push({t:s.slice(last,m.index), hl:false}); runs.push({t:m[1]||m[2], hl:true}); last = re.lastIndex; }
+  if(last < s.length) runs.push({t:s.slice(last), hl:false});
+  return runs;
+}
+const NO_START = '、。，．,.!?！？」』）)]ー…ゃゅょっャュョッぁぃぅぇぉァィゥェォ～~:;%';
+function wrap(ctx, text, maxW, lang){
+  const lines = []; let cur = [], w = 0;
+  const paras = String(text||'').split('\n');
+  paras.forEach((para, pi)=>{
+    const toks = [];
+    parseHL(para).forEach(r=>{
+      const parts = r.t.split(/(\s+)/).filter(x=>x!=='');
+      parts.forEach(p=>{
+        const cjkNoSpace = lang==='ja' || ctx.measureText(p).width > maxW;
+        if(cjkNoSpace && !/^\s+$/.test(p)){
+          // 일본어: 글자 단위, 단 영어/숫자 묶음은 유지
+          (p.match(/[A-Za-z0-9.,%'’\-]+|./gu)||[]).forEach(ch=>toks.push({t:ch, hl:r.hl}));
+        } else toks.push({t:p, hl:r.hl});
+      });
+    });
+    toks.forEach(tk=>{
+      const tw = ctx.measureText(tk.t).width;
+      const isSpace = /^\s+$/.test(tk.t);
+      if(isSpace && !cur.length) return;
+      if(w + tw > maxW && cur.length && !NO_START.includes(tk.t)){
+        while(cur.length && /^\s+$/.test(cur[cur.length-1].t)) cur.pop();
+        lines.push(cur); cur = []; w = 0;
+        if(isSpace) return;
+      }
+      cur.push(tk); w += tw;
+    });
+    while(cur.length && /^\s+$/.test(cur[cur.length-1].t)) cur.pop();
+    if(cur.length || pi < paras.length-1) lines.push(cur);
+    cur = []; w = 0;
+  });
+  return lines.filter((l,i,a)=>l.length || (i>0 && i<a.length-1));
+}
+const lineW = (ctx, line) => line.reduce((s,t)=>s+ctx.measureText(t.t).width, 0);
+/* 글 덩어리를 크기 자동 조절해서 배치 */
+function fitBlock(ctx, items, maxW, maxH, lang){
+  let scale = 1;
+  for(let k=0;k<14;k++){
+    let total = 0;
+    items.forEach(it=>{
+      if(!it.text){ it.lines=[]; it.h=0; return; }
+      let size = Math.round(it.size*scale);
+      for(;;){
+        ctx.font = `${it.weight} ${size}px ${it.family}`;
+        it.lines = wrap(ctx, it.text, maxW, lang);
+        if(it.lines.length <= (it.maxLines||99) || size <= it.min) break;
+        size -= 3;
+      }
+      it.px = size; it.lh = Math.round(size*(it.lhr||1.3));
+      it.h = it.lines.length*it.lh;
+      total += it.h + (it.gap||0);
+    });
+    if(total <= maxH) return total;
+    scale *= 0.93;
+  }
+  return items.reduce((s,it)=>s+(it.h||0)+(it.gap||0),0);
+}
+function drawBlock(ctx, items, x, y, maxW, align){
+  items.forEach(it=>{
+    if(!it.lines || !it.lines.length){ return; }
+    ctx.font = `${it.weight} ${it.px}px ${it.family}`;
+    ctx.textBaseline = 'alphabetic';
+    if(it.shadow){ ctx.shadowColor='rgba(0,0,0,.45)'; ctx.shadowBlur=18; } else { ctx.shadowColor='transparent'; ctx.shadowBlur=0; }
+    it.lines.forEach((line,li)=>{
+      const lw = lineW(ctx, line);
+      let cx = align==='center' ? x + (maxW-lw)/2 : x;
+      const by = y + li*it.lh + it.px*0.92;
+      if(it.marker){ // 페이퍼 테마 강조: 형광펜
+        let mx = cx;
+        line.forEach(t=>{ const tw=ctx.measureText(t.t).width; if(t.hl){ ctx.save(); ctx.shadowColor='transparent'; ctx.fillStyle=hexA(state.accent,.35); ctx.fillRect(mx-2, by-it.px*0.38, tw+4, it.px*0.46); ctx.restore(); } mx+=tw; });
+      }
+      line.forEach(t=>{ ctx.fillStyle = t.hl && !it.marker ? (it.hlColor||state.accent) : it.color; ctx.fillText(t.t, cx, by); cx += ctx.measureText(t.t).width; });
+    });
+    y += it.h + (it.gap||0);
+  });
+  ctx.shadowColor='transparent'; ctx.shadowBlur=0;
+  return y;
+}
+function hexA(hex, a){ const n = parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function pill(ctx, text, x, y, bg, fg, font){
+  ctx.font = font; const tw = ctx.measureText(text).width; const h = 64;
+  ctx.fillStyle = bg; roundRect(ctx, x, y, tw+44, h, 32); ctx.fill();
+  ctx.fillStyle = fg; ctx.textBaseline='middle'; ctx.fillText(text, x+22, y+h/2+2); ctx.textBaseline='alphabetic';
+  return h;
+}
+function drawCover(ctx, img, dim){
+  const s = Math.max(W/img.naturalWidth, H/img.naturalHeight);
+  const w = img.naturalWidth*s, h = img.naturalHeight*s;
+  ctx.drawImage(img, (W-w)/2, (H-h)/2, w, h);
+  const g = ctx.createLinearGradient(0, H*0.25, 0, H);
+  g.addColorStop(0, `rgba(0,0,0,${dim*0.25})`); g.addColorStop(0.55, `rgba(0,0,0,${Math.min(.95,dim*0.95+.2)})`); g.addColorStop(1, `rgba(0,0,0,${Math.min(.97,dim+.3)})`);
+  ctx.fillStyle = `rgba(0,0,0,${dim*0.35})`; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+}
+
+/* 카드 목록: [{kind, idx}] */
+function cardList(d){
+  const list = [{kind:'cover'}];
+  d.slides.forEach((s,i)=>list.push({kind:'slide', i}));
+  if(d.outro) list.push({kind:'outro'});
+  return list;
+}
+function drawCard(cv, lang, ci){
+  const d = state.data[lang]; const list = cardList(d); const c = list[ci];
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  const f = fonts(lang); const th = state.theme; const A = state.accent;
+  const total = list.length; const handle = $('handle').value.trim();
+  const dark = th!=='paper';
+  const ink = dark ? '#ffffff' : '#161616';
+  const sub = dark ? 'rgba(255,255,255,.78)' : '#3d3a35';
+  const faint = dark ? 'rgba(255,255,255,.5)' : '#8a857b';
+  const head = th==='paper' ? f.serif : f.sans;
+  const photo = th==='photo' ? state.photos[ci] : null;
+  const dim = (+$('dim').value)/100;
+
+  // 배경
+  if(th==='paper'){
+    ctx.fillStyle = '#f4efe4'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = 'rgba(0,0,0,.025)'; for(let y=0;y<H;y+=6) ctx.fillRect(0,y,W,1);
+  } else if(th==='photo' && photo){
+    drawCover(ctx, photo.img, dim);
+  } else if(th==='photo'){
+    const g = ctx.createLinearGradient(0,0,W,H); g.addColorStop(0, '#2a2d36'); g.addColorStop(1,'#0b0b0e'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  } else {
+    ctx.fillStyle = '#0f0f12'; ctx.fillRect(0,0,W,H);
+    const g = ctx.createRadialGradient(W*0.85, H*0.1, 10, W*0.85, H*0.1, W*0.9);
+    g.addColorStop(0, hexA(A,.22)); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  }
+
+  // 머리줄
+  ctx.textBaseline = 'alphabetic';
+  if(th==='paper'){
+    ctx.fillStyle = '#161616'; ctx.fillRect(PAD, 92, W-PAD*2, 5); ctx.fillRect(PAD, 104, W-PAD*2, 2);
+    ctx.font = `700 30px ${f.serif}`; ctx.fillStyle='#161616';
+    ctx.fillText(d.cover.kicker.toUpperCase(), PAD, 80);
+    ctx.font = `500 28px ${f.sans}`; ctx.fillStyle = faint;
+    const pg = `${ci+1} / ${total}`; ctx.fillText(pg, W-PAD-ctx.measureText(pg).width, 80);
+  } else {
+    ctx.font = `700 30px ${f.sans}`; ctx.fillStyle = faint;
+    const pg = `${ci+1} / ${total}`; ctx.fillText(pg, W-PAD-ctx.measureText(pg).width, 100);
+    if(c.kind!=='cover'){ ctx.fillStyle = A; ctx.fillRect(PAD, 78, 46, 8); ctx.font=`700 28px ${f.sans}`; ctx.fillStyle=faint; ctx.fillText(d.cover.kicker, PAD+62, 92); }
+  }
+  // 아래 계정
+  if(handle){ ctx.font = `600 28px ${f.sans}`; ctx.fillStyle = faint; ctx.fillText(handle, PAD, H-70); }
+  if(photo && photo.credit){ ctx.font = `400 20px ${f.sans}`; ctx.fillStyle='rgba(255,255,255,.45)'; ctx.fillText(photo.credit, W-PAD-ctx.measureText(photo.credit).width, H-40); }
+
+  const maxW = W - PAD*2;
+  const shadow = th==='photo';
+  if(c.kind==='cover'){
+    const items = [
+      {text:d.cover.title, size: lang==='en'?104:112, min:58, weight:900, family:head, color:ink, lhr:1.22, maxLines:4, gap:34, shadow},
+      {text:d.cover.sub, size:44, min:30, weight:500, family:f.sans, color:sub, lhr:1.45, maxLines:3, gap:0, shadow}
+    ];
+    const top = th==='paper' ? 200 : 260, bottom = H-170;
+    const h = fitBlock(ctx, items, maxW, bottom-top-90, lang);
+    let y = th==='paper' ? Math.max(top+90, top + 90 + (bottom-top-90-h)/2 - 40) : bottom - h;
+    if(th!=='paper'){ pill(ctx, d.cover.kicker, PAD, y-104, A, '#fff', `800 32px ${f.sans}`); }
+    else { ctx.fillStyle = A; ctx.fillRect(PAD, y-70, 120, 10); }
+    drawBlock(ctx, items, PAD, y, maxW, 'left');
+    // 넘겨보기
+    ctx.font = `700 30px ${f.sans}`; const sw = SWIPE[lang]||SWIPE.ko;
+    ctx.fillStyle = th==='paper' ? '#161616' : '#fff'; ctx.fillText(sw, W-PAD-ctx.measureText(sw).width, H-70);
+    if(th==='paper'){ ctx.fillStyle='#161616'; ctx.fillRect(PAD, H-130, W-PAD*2, 2); }
+  }
+  else if(c.kind==='slide'){
+    const s = d.slides[c.i];
+    const no = String(c.i+1).padStart(2,'0');
+    const items = [
+      {text:s.heading, size:76, min:46, weight:th==='paper'?900:800, family:head, color:ink, lhr:1.25, maxLines:3, gap:44, shadow},
+      {text:s.body, size:52, min:32, weight:th==='paper'?500:500, family:th==='paper'?f.serif:f.sans, color:sub, lhr:1.62, maxLines:12, gap:0, shadow}
+    ];
+    if(th==='photo'){
+      const h = fitBlock(ctx, items, maxW, H*0.5, lang);
+      let y = H-170-h;
+      ctx.font = `900 64px ${f.sans}`; ctx.fillStyle = A; ctx.fillText(no, PAD, y-40);
+      drawBlock(ctx, items, PAD, y, maxW, 'left');
+    } else {
+      const top = th==='paper'? 190 : 200;
+      ctx.font = `900 120px ${head}`; ctx.fillStyle = A; ctx.fillText(no, PAD-4, top+110);
+      const y0 = top + 170;
+      ctx.fillStyle = dark ? 'rgba(255,255,255,.15)' : '#16161633';
+      const h = fitBlock(ctx, items, maxW, H-160-y0, lang);
+      drawBlock(ctx, items, PAD, y0, maxW, 'left');
+      void h;
+    }
+  }
+  else { // outro
+    const items = [
+      {text:d.outro.title, size:86, min:50, weight:900, family:head, color:ink, lhr:1.25, maxLines:4, gap:40, shadow},
+      {text:d.outro.body, size:46, min:30, weight:500, family:f.sans, color:sub, lhr:1.55, maxLines:5, gap:0, shadow}
+    ];
+    const h = fitBlock(ctx, items, maxW-40, 640, lang);
+    let y = (H - h)/2 + 60;
+    // 물음표 원
+    const cx = W/2, cy = y-130;
+    ctx.fillStyle = A; ctx.beginPath(); ctx.arc(cx, cy, 70, 0, Math.PI*2); ctx.fill();
+    ctx.font = `900 96px ${f.sans}`; ctx.fillStyle='#fff'; ctx.textBaseline='middle';
+    ctx.fillText('?', cx-ctx.measureText('?').width/2, cy+4); ctx.textBaseline='alphabetic';
+    drawBlock(ctx, items, PAD+20, y, maxW-40, 'center');
+    const cm = {ko:'💬 댓글로 알려줘', ja:'💬 コメントで教えて', en:'💬 Tell us in the comments'}[lang];
+    ctx.font = `700 34px ${f.sans}`; ctx.fillStyle = A;
+    ctx.fillText(cm, (W-ctx.measureText(cm).width)/2, Math.min(H-150, y+h+110));
+  }
+}
+
+/* ============ 결과 화면 ============ */
+const hasCards = () => !!state.data.ko;
+function renderLangTabs(){
+  const t = $('langTabs');
+  t.classList.toggle('show', state.langs.length>1);
+  t.innerHTML = state.langs.map(l=>`<button type="button" class="${l===state.lang?'on':''}" data-l="${l}">${LANG_NAME[l]}</button>`).join('');
+}
+$('langTabs').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; state.lang=b.dataset.l; renderAll(true); });
+
+let renderTimer = null;
+function renderAll(rebuild){
+  if(!hasCards()) return;
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(()=>doRender(rebuild), rebuild?0:60);
+}
+async function doRender(rebuild){
+  const lang = state.lang, d = state.data[lang];
+  await ensureFonts(lang);
+  $('empty').style.display = 'none';
+  $('capPanel').style.display = 'block'; $('outbar').classList.add('show');
+  renderLangTabs();
+  const list = cardList(d);
+  const box = $('cards');
+  if(rebuild || box.children.length !== list.length || box.dataset.lang !== lang){
+    box.dataset.lang = lang;
+    box.innerHTML = list.map((c,ci)=>`<div class="card" data-ci="${ci}"><canvas></canvas><div class="ed">${editorHTML(d,c)}</div>
+      <div class="ctl">
+        <button class="btn sm ghost" type="button" data-act="png">⬇️ 이 장 저장</button>
+        ${state.theme==='photo' ? `<button class="btn sm ghost" type="button" data-act="shuffle">🔄 다른 사진</button><label class="btn sm ghost" style="margin:0">📷 내 사진<input type="file" accept="image/*" hidden data-act="up"></label>` : ''}
+      </div><div class="credit"></div></div>`).join('');
+    $('caption').value = d.caption + (d.hashtags.length ? '\n\n' + d.hashtags.map(h=>'#'+h).join(' ') : '') + creditLine();
+  }
+  [...box.children].forEach((el,ci)=>{
+    drawCard(el.querySelector('canvas'), lang, ci);
+    const p = state.photos[ci];
+    el.querySelector('.credit').textContent = state.theme==='photo' && p && p.credit ? p.credit : '';
+  });
+  $('makeSources').innerHTML = sourcesHTML(state.sources) + (state.sources.length?'<br>':'') + '⚠️ 올리기 전에 사실관계를 한 번 확인해 주세요.';
+}
+function creditLine(){
+  if(state.theme!=='photo') return '';
+  const cr = [...new Set(state.photos.filter(p=>p&&p.credit).map(p=>p.credit))];
+  return cr.length ? '\n\n' + cr.join(', ') : '';
+}
+function editorHTML(d, c){
+  if(c.kind==='cover') return `<input type="text" data-f="cover.kicker" value="${esc(d.cover.kicker)}" placeholder="머리말">
+    <textarea data-f="cover.title" rows="2" placeholder="제목 (==강조==)">${esc(d.cover.title)}</textarea>
+    <textarea data-f="cover.sub" rows="2" placeholder="부제">${esc(d.cover.sub)}</textarea>`;
+  if(c.kind==='slide') return `<input type="text" data-f="slides.${c.i}.heading" value="${esc(d.slides[c.i].heading)}" placeholder="소제목">
+    <textarea data-f="slides.${c.i}.body" rows="4" placeholder="본문">${esc(d.slides[c.i].body)}</textarea>`;
+  return `<input type="text" data-f="outro.title" value="${esc(d.outro.title)}" placeholder="질문">
+    <textarea data-f="outro.body" rows="2" placeholder="설명">${esc(d.outro.body)}</textarea>`;
+}
+$('cards').addEventListener('input', e=>{
+  const f = e.target.dataset.f; if(!f) return;
+  const d = state.data[state.lang]; const path = f.split('.');
+  let o = d; for(let i=0;i<path.length-1;i++) o = o[path[i]];
+  o[path[path.length-1]] = e.target.value;
+  const card = e.target.closest('.card');
+  clearTimeout(card._t); card._t = setTimeout(async ()=>{ await ensureFonts(state.lang); [...$('cards').children].forEach((el,ci)=>drawCard(el.querySelector('canvas'), state.lang, ci)); }, 150);
+});
+$('cards').addEventListener('click', async e=>{
+  const b = e.target.closest('[data-act]'); if(!b || b.dataset.act==='up') return;
+  const ci = +b.closest('.card').dataset.ci;
+  if(b.dataset.act==='png'){ const blob = await cardBlob(ci); if(blob) downloadBlob(blob, fileName(ci)); }
+  if(b.dataset.act==='shuffle'){
+    if($('photoSrc').value==='none'){ setStatus('outStatus','설정에서 무료 사진(Pexels/Unsplash)을 고르고 키를 넣으면 자동 사진을 쓸 수 있어요. 지금은 📷 내 사진으로 넣어 주세요.','err'); return; }
+    shufflePhoto(ci);
+  }
+});
+$('cards').addEventListener('change', e=>{
+  if(e.target.dataset.act!=='up' || !e.target.files[0]) return;
+  uploadPhoto(+e.target.closest('.card').dataset.ci, e.target.files[0]);
+});
+
+/* ============ 저장·공유 ============ */
+const fileName = ci => `issue_${state.lang}_${String(ci+1).padStart(2,'0')}.png`;
+function cardBlob(ci){
+  const cv = $('cards').children[ci].querySelector('canvas');
+  return new Promise(res=>{
+    try{ cv.toBlob(b=>res(b), 'image/png'); }
+    catch(e){ setStatus('outStatus','이 사진은 저장이 막혀 있어요. 🔄 다른 사진이나 📷 내 사진으로 바꿔 주세요.','err'); res(null); }
+  });
+}
+function downloadBlob(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+async function allFiles(){
+  const n = $('cards').children.length, files = [];
+  for(let i=0;i<n;i++){ const b = await cardBlob(i); if(!b) return null; files.push(new File([b], fileName(i), {type:'image/png'})); }
+  return files;
+}
+function loadZip(){
+  return new Promise((res,rej)=>{ if(window.JSZip) return res(); const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload=res; s.onerror=()=>rej(new Error('ZIP 도구를 못 불러왔어요')); document.head.appendChild(s); });
+}
+$('btnZip').onclick = async ()=>{
+  try{
+    setStatus('outStatus','<span class="spin"></span>ZIP 만드는 중…');
+    await loadZip(); const files = await allFiles(); if(!files) return;
+    const zip = new JSZip(); files.forEach(f=>zip.file(f.name, f));
+    zip.file(`caption_${state.lang}.txt`, $('caption').value);
+    downloadBlob(await zip.generateAsync({type:'blob'}), `issue_cards_${state.lang}.zip`);
+    setStatus('outStatus','✅ 저장했어요 (카드 '+files.length+'장 + 캡션)','ok');
+  }catch(e){ setStatus('outStatus', esc(e.message), 'err'); }
+};
+$('btnShare').onclick = async ()=>{
+  try{
+    const files = await allFiles(); if(!files) return;
+    try{ await navigator.clipboard.writeText($('caption').value); }catch(e){}
+    if(navigator.canShare && navigator.canShare({files})){
+      await navigator.share({files, title:'이슈 카드'});
+      setStatus('outStatus','✅ 공유 창을 열었어요. 캡션은 복사돼 있으니 인스타에서 붙여넣기 하세요.','ok');
+    } else {
+      files.forEach((f,i)=>setTimeout(()=>downloadBlob(f, f.name), i*300));
+      setStatus('outStatus','이 브라우저는 바로 공유가 안 돼서 사진을 한 장씩 저장했어요. 캡션은 복사돼 있어요.','ok');
+    }
+  }catch(e){ if(e.name!=='AbortError') setStatus('outStatus', esc(e.message), 'err'); }
+};
+$('btnCopy').onclick = async ()=>{
+  try{ await navigator.clipboard.writeText($('caption').value); setStatus('outStatus','✅ 캡션을 복사했어요.','ok'); }
+  catch(e){ $('caption').select(); document.execCommand('copy'); setStatus('outStatus','✅ 캡션을 복사했어요.','ok'); }
+};
+$('caption').addEventListener('input', ()=>{ /* 직접 고친 캡션은 그대로 유지 */ });
+</script>
+</body>
+</html>
