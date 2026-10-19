@@ -95,6 +95,10 @@ details.settings summary .keyok{margin-left:auto;font-size:12px;font-weight:600}
 .card .ed textarea,.card .ed input{font-size:13px;padding:7px 9px;min-height:0}
 .card .ed textarea{min-height:64px}
 .card .ctl{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tcands{display:grid;gap:5px}
+.tcand{font:inherit;font-size:12.5px;text-align:left;border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:6px 8px;cursor:pointer;color:var(--ink)}
+.tcand small{display:block;font-size:11px;color:var(--muted)}
+.tcand.on{border-color:var(--accent);background:#fff}
 .card .credit{font-size:11px;color:var(--muted);margin-top:4px}
 .outbar{position:sticky;top:52px;z-index:3;background:var(--bg);padding:8px 0;display:none;gap:8px;flex-wrap:wrap}
 .outbar.show{display:flex}
@@ -499,7 +503,8 @@ const TONES = {
 };
 function shapeRule(n, outro){
   return `{
- "cover": {"kicker":"작은 머리말(예: 해외이슈, 일본 화제, 美 레딧 난리)", "title":"표지 제목 22자 이내, 가장 센 단어 하나를 ==이렇게== 감싸기", "sub":"표지 부제 1문장 30자 이내(궁금증 유발)"},
+ "titles": [ 표지 제목 후보 5개. 패턴을 하나씩 다르게: "호기심갭", "반전예고", "숫자·구체성", "너라면·공감", "몰랐던 사실". 각 {"pattern":"패턴이름", "title":"22자 이내, 가장 센 단어 하나를 ==이렇게== 감싸기", "sub":"30자 이내, 궁금증을 더 키우는 부제(답은 숨김)", "score": 클릭될 가능성 1~10} ],
+ "cover": {"kicker":"작은 머리말(예: 해외이슈, 일본 화제, 美 레딧 난리)", "title":"titles 중 score가 가장 높은 제목", "sub":"그 제목의 부제"},
  "slides": [ ${n}개, 각 {"heading":"소제목 16자 이내", "body":"2~4문장, 90자 이내", "photo":"이 장면에 어울리는 무료 사진 검색어 영어 2~4단어(특정 인물 이름 X, 일반적인 장면)"} ],
  ${outro ? '"outro": {"title":"댓글 달고 싶어지는 질문 (예: 너라면 어떻게 할래?)", "body":"선택지나 생각해볼 거리 1~2문장"},' : ''}
  "cover_photo": "표지용 사진 검색어 영어 2~4단어",
@@ -532,7 +537,16 @@ ${facts}
 
 [글 스타일]
 - 말투: ${TONES[$('tone').value]}
-- 표지는 넘겨보고 싶게. 본문은 1장부터 순서대로 이야기가 이어지게(배경 → 사건 → 반전/결과 → 반응).
+- 표지 제목이 제일 중요하다. 피드에서 0.5초 만에 손가락을 멈추게 해야 한다:
+  · 결과나 반전은 절대 제목에서 말하지 말고 숨겨라 ("~한 이유", "~의 최후", "~했더니 생긴 일", "결국 ~").
+  · 구체적으로: 숫자·나이·금액·기간·나라를 넣어라 ("20년 만에", "월급 300 직원", "日 편의점").
+  · 가장 센 단어를 맨 앞 5글자 안에. 감정 단어는 하나만 (소름, 눈물, 경악 같은 건 남발 금지).
+  · 독자를 끌어들여라: "너라면?", "이거 실화임?", "다들 몰랐던".
+  · 단, 본문 내용과 다른 거짓·과장 낚시 금지. 제목이 약속한 궁금증은 본문에서 꼭 풀어줘라.
+  · 나쁜 예: "호주 직장인의 퇴근 후 연락 문제" (설명만 함) → 좋은 예: "퇴근 후 카톡 보낸 ==상사==, 3일 뒤 생긴 일"
+- 부제는 궁금증을 한 번 더 키우되 답은 말하지 마라.
+- 마지막 본문 장에서 반전·결과를 확실히 보여줘서 "와" 소리 나게.
+- 본문은 1장부터 순서대로 이야기가 이어지게(배경 → 사건 → 반전/결과 → 반응).
 - 본문이 1장이면 그 한 장에 핵심을 다 담아라.
 - 한국 사람 눈높이로: 낯선 나라 문화는 한 줄로 쉽게 설명.
 
@@ -568,6 +582,7 @@ function normalize(d, n, outro){
     slides:(Array.isArray(d.slides)?d.slides:[]).slice(0,n).map(x=>({heading:s(x.heading), body:s(x.body), photo:s(x.photo)})),
     outro: outro ? { title:s(d.outro&&d.outro.title)||'너라면 어떻게 할래?', body:s(d.outro&&d.outro.body) } : null,
     cover_photo:s(d.cover_photo),
+    titles:(Array.isArray(d.titles)?d.titles:[]).filter(t=>t&&t.title).map(t=>({pattern:s(t.pattern), title:s(t.title), sub:s(t.sub), score:+t.score||0})).sort((a,b)=>b.score-a.score),
     caption:s(d.caption),
     hashtags:(Array.isArray(d.hashtags)?d.hashtags:String(d.hashtags||'').split(/[\s,]+/)).map(h=>s(h).replace(/^#/,'')).filter(Boolean)
   };
@@ -584,7 +599,7 @@ async function translateTo(langs){
       ? '일본어. 일본 인스타·X에서 자연스러운 말투(표지/소제목은 짧게, 본문은 です・ます 대신 친근한 구어체도 OK). 한국 원화·지명 등은 일본 독자에게 맞게. 해시태그는 일본어로 새로 만들어라(#海外ニュース 등).'
       : '영어. 미국 인스타 바이럴 계정처럼 짧고 자연스럽게. 해시태그는 영어로 새로 만들어라.';
     const prompt = `아래 카드뉴스 JSON을 ${guide}
-규칙: 직역 말고 그 나라 사람이 쓴 것처럼. ==강조== 표시는 같은 의미의 단어에 그대로 유지. kicker도 번역(예: 海外ニュース / WORLD BUZZ). caption 마지막 '출처' 줄도 번역. 키 구조는 그대로, JSON만 출력.
+규칙: 직역 말고 그 나라 사람이 쓴 것처럼. 표지 제목은 그 나라 SNS에서 손가락이 멈출 만큼 궁금하게(결과는 숨기고, 숫자·구체성 유지). ==강조== 표시는 같은 의미의 단어에 그대로 유지. kicker도 번역(예: 海外ニュース / WORLD BUZZ). caption 마지막 '출처' 줄도 번역. 키 구조는 그대로, JSON만 출력.
 ${JSON.stringify(src)}`;
     try{
       const r = await gemini(prompt, {json:true, temp:0.6});
@@ -1006,7 +1021,8 @@ function creditLine(){
 function editorHTML(d, c){
   if(c.kind==='cover') return `<input type="text" data-f="cover.kicker" value="${esc(d.cover.kicker)}" placeholder="머리말">
     <textarea data-f="cover.title" rows="2" placeholder="제목 (==강조==)">${esc(d.cover.title)}</textarea>
-    <textarea data-f="cover.sub" rows="2" placeholder="부제">${esc(d.cover.sub)}</textarea>`;
+    <textarea data-f="cover.sub" rows="2" placeholder="부제">${esc(d.cover.sub)}</textarea>
+    ${(d.titles&&d.titles.length) ? `<div class="hint" style="margin:2px 0 0"><b>🔥 제목 후보</b> (누르면 바로 바뀌어요)</div><div class="tcands">${d.titles.map((t,ti)=>`<button type="button" class="tcand${t.title===d.cover.title?' on':''}" data-ti="${ti}"><small>${esc(t.pattern)}${t.score?' · '+t.score+'점':''}</small>${esc(t.title.replace(/==/g,''))}</button>`).join('')}</div>` : ''}`;
   if(c.kind==='slide') return `<input type="text" data-f="slides.${c.i}.heading" value="${esc(d.slides[c.i].heading)}" placeholder="소제목">
     <textarea data-f="slides.${c.i}.body" rows="4" placeholder="본문">${esc(d.slides[c.i].body)}</textarea>`;
   return `<input type="text" data-f="outro.title" value="${esc(d.outro.title)}" placeholder="질문">
@@ -1021,6 +1037,17 @@ $('cards').addEventListener('input', e=>{
   clearTimeout(card._t); card._t = setTimeout(async ()=>{ await ensureFonts(state.lang); [...$('cards').children].forEach((el,ci)=>drawCard(el.querySelector('canvas'), state.lang, ci)); }, 150);
 });
 $('cards').addEventListener('click', async e=>{
+  const tc = e.target.closest('.tcand');
+  if(tc){
+    const d = state.data[state.lang]; const t = d.titles[+tc.dataset.ti];
+    d.cover.title = t.title; if(t.sub) d.cover.sub = t.sub;
+    const card = tc.closest('.card');
+    card.querySelector('[data-f="cover.title"]').value = d.cover.title;
+    card.querySelector('[data-f="cover.sub"]').value = d.cover.sub;
+    card.querySelectorAll('.tcand').forEach(x=>x.classList.toggle('on', x===tc));
+    drawCard(card.querySelector('canvas'), state.lang, 0);
+    return;
+  }
   const b = e.target.closest('[data-act]'); if(!b || b.dataset.act==='up') return;
   const ci = +b.closest('.card').dataset.ci;
   if(b.dataset.act==='png'){ const blob = await cardBlob(ci); if(blob) downloadBlob(blob, fileName(ci)); }
