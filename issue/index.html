@@ -226,7 +226,11 @@ input[type=range]{width:100%}
       </div>
     </div>
     <div class="checks" style="margin-top:12px">
-      <label><input type="checkbox" id="useOutro" checked> 마지막 질문 장 넣기</label>
+      <label><input type="checkbox" id="useOutro" checked> 마지막 마무리 장 넣기</label>
+      <select id="outroType" style="width:auto;padding:6px 8px;font-size:13px">
+        <option value="ask">대중에게 묻기 (여러분 생각은?)</option>
+        <option value="conclude">결론 정리 (한 줄 결론)</option>
+      </select>
       <label><input type="checkbox" id="useSearch" checked> 검색으로 내용 보강</label>
     </div>
     <label>같이 만들 언어</label>
@@ -319,7 +323,7 @@ function store(k,v){ try{ localStorage.setItem('icm_'+k, v); }catch(e){} }
 function load(k){ try{ return localStorage.getItem('icm_'+k) || ''; }catch(e){ return ''; } }
 function loadJSON(k,d){ try{ return JSON.parse(load(k)) || d; }catch(e){ return d; } }
 
-['geminiKey','gemModel','photoSrc','pixabayKey','pexelsKey','unsplashKey','handle','tone','count','period'].forEach(id=>{
+['outroType','geminiKey','gemModel','photoSrc','pixabayKey','pexelsKey','unsplashKey','handle','tone','count','period'].forEach(id=>{
   const v = load(id); if(v) $(id).value = v;
   $(id).addEventListener('change', ()=>{ store(id, $(id).value); refreshSettings(); });
 });
@@ -536,7 +540,9 @@ function shapeRule(n, outro){
  "titles": [ 표지 제목 후보 5개. 패턴을 하나씩 다르게: "호기심갭", "반전예고", "숫자·구체성", "공감·감정이입", "몰랐던 사실". 각 {"pattern":"패턴이름", "title":"22자 이내, 가장 센 단어 하나를 ==이렇게== 감싸기", "sub":"30자 이내, 궁금증을 더 키우는 부제(답은 숨김)", "score": 클릭될 가능성 1~10} ],
  "cover": {"kicker":"작은 머리말(예: 해외이슈, 일본 화제, 美 레딧 난리)", "title":"titles 중 score가 가장 높은 제목", "sub":"그 제목의 부제"},
  "slides": [ ${n}개, 각 {"heading":"소제목 16자 이내", "body":"2~4문장, 90자 이내", "photo":"이 장면에 어울리는 무료 사진 검색어 영어 2~4단어(특정 인물 이름 X, 일반적인 장면)"} ],
- ${outro ? '"outro": {"title":"댓글 달고 싶어지는 질문 (예: 여러분은 어느 쪽인가요?, 이거 선 넘은 거 맞죠?) — "너라면"이라는 말은 쓰지 마라", "body":"선택지나 생각해볼 거리 1~2문장"},' : ''}
+ ${outro ? ($('outroType').value==='conclude'
+   ? '"outro": {"title":"이 이야기의 결론을 한 문장으로 (20자 이내, 예: 결국 이긴 건 직원이었다)", "body":"생각해볼 만한 한마디 1~2문장 (교훈 강요·설교 X)"},'
+   : '"outro": {"title":"대중에게 던지는 질문 (예: 여러분은 이거 선 넘었다고 보나요?, 여러분이라면 참을 수 있나요?)", "body":"고르기 쉬운 선택지나 생각할 거리 1~2문장 (예: 참는다 vs 바로 말한다)"},') : ''}
  "cover_photo": "표지용 사진 검색어 영어 2~4단어",
  "caption": "인스타 캡션 3~6줄. 첫 줄은 후킹. 마지막 줄은 '출처: 매체이름'",
  "hashtags": ["해시태그 8~12개, #없이"]
@@ -612,7 +618,7 @@ function normalize(d, n, outro){
   const out = {
     cover:{ kicker:s(d.cover&&d.cover.kicker)||'해외이슈', title:s(d.cover&&d.cover.title)||'제목', sub:s(d.cover&&d.cover.sub) },
     slides:(Array.isArray(d.slides)?d.slides:[]).slice(0,n).map(x=>({heading:s(x.heading), body:s(x.body), photo:s(x.photo)})),
-    outro: outro ? { title:s(d.outro&&d.outro.title)||'여러분 생각은 어때요?', body:s(d.outro&&d.outro.body) } : null,
+    outro: outro ? { kind:$('outroType').value, title:s(d.outro&&d.outro.title)||($('outroType').value==='conclude'?'결론':'여러분 생각은 어때요?'), body:s(d.outro&&d.outro.body) } : null,
     cover_photo:s(d.cover_photo),
     titles:(Array.isArray(d.titles)?d.titles:[]).filter(t=>t&&t.title).map(t=>({pattern:s(t.pattern), title:s(t.title), sub:s(t.sub), score:+t.score||0})).sort((a,b)=>b.score-a.score),
     caption:s(d.caption),
@@ -990,9 +996,10 @@ function drawCard(cv, lang, ci){
     const cx = W/2, cy = y-130;
     ctx.fillStyle = A; ctx.beginPath(); ctx.arc(cx, cy, 70, 0, Math.PI*2); ctx.fill();
     ctx.font = `900 96px ${f.sans}`; ctx.fillStyle='#fff'; ctx.textBaseline='middle';
-    ctx.fillText('?', cx-ctx.measureText('?').width/2, cy+4); ctx.textBaseline='alphabetic';
+    const mark = d.outro.kind==='conclude' ? '!' : '?';
+    ctx.fillText(mark, cx-ctx.measureText(mark).width/2, cy+4); ctx.textBaseline='alphabetic';
     drawBlock(ctx, items, PAD+20, y, maxW-40, 'center');
-    const cm = {ko:'💬 댓글로 알려줘', ja:'💬 コメントで教えて', en:'💬 Tell us in the comments'}[lang];
+    const cm = d.outro.kind==='conclude' ? '' : {ko:'💬 여러분 생각은 댓글로', ja:'💬 みなさんの意見をコメントで', en:'💬 What do you think? Comment below'}[lang];
     ctx.font = `700 34px ${f.sans}`; ctx.fillStyle = A;
     ctx.fillText(cm, (W-ctx.measureText(cm).width)/2, Math.min(H-150, y+h+110));
   }
