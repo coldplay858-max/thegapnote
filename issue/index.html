@@ -231,6 +231,8 @@ input[type=range]{width:100%}
       <button type="button" class="theme t-paper" data-theme="paper"><i></i>신문 페이퍼</button>
       <button type="button" class="theme t-photo" data-theme="photo"><i></i>사진 배경</button>
     </div>
+    <div class="checks" style="margin-top:10px"><label><input type="checkbox" id="usePhoto" checked> 카드에 무료 사진 넣기</label></div>
+    <div class="hint" id="photoHint"></div>
     <div class="photoOnly">
       <label for="dim">사진 어둡게 <small id="dimVal"></small></label>
       <input type="range" id="dim" min="0" max="90" value="55">
@@ -285,7 +287,7 @@ function loadJSON(k,d){ try{ return JSON.parse(load(k)) || d; }catch(e){ return 
   const v = load(id); if(v) $(id).value = v;
   $(id).addEventListener('change', ()=>{ store(id, $(id).value); refreshSettings(); });
 });
-['useOutro','useSearch','langJa','langEn'].forEach(id=>{
+['useOutro','useSearch','langJa','langEn','usePhoto'].forEach(id=>{
   const v = load(id); if(v) $(id).checked = v==='1';
   $(id).addEventListener('change', ()=>store(id, $(id).checked?'1':'0'));
 });
@@ -298,6 +300,7 @@ function refreshSettings(){
   $('keyState').style.color = ok ? 'var(--ok)' : 'var(--err)';
 }
 refreshSettings();
+setTimeout(photoHint,0);
 if(!$('geminiKey').value.trim()) $('settingsBox').open = true;
 
 function setStatus(id, msg, cls){ const s=$(id); s.className='status'+(cls?' '+cls:''); s.innerHTML=msg||''; }
@@ -331,7 +334,8 @@ applyTheme();
 $('themes').addEventListener('click', async e=>{
   const b = e.target.closest('.theme'); if(!b) return;
   state.theme = b.dataset.theme; store('theme', state.theme); applyTheme();
-  if(state.theme==='photo' && hasCards()) await fillPhotos(false);
+  photoHint(); if(wantPhotos() && hasCards()) await fillPhotos(false);
+  renderAll(true); return;
   renderAll();
 });
 $('swatches').addEventListener('click', e=>{
@@ -542,7 +546,7 @@ ${shapeRule(n, outro)}`;
     state.photos = [];
     if(p.title) addHistory(p.title); else addHistory(d.cover.title.replace(/==/g,''));
     const want = [$('langJa').checked&&'ja', $('langEn').checked&&'en'].filter(Boolean);
-    if(state.theme==='photo'){ setStatus('makeStatus','<span class="spin"></span>어울리는 무료 사진 찾는 중…'); await fillPhotos(false); }
+    if(wantPhotos()){ setStatus('makeStatus','<span class="spin"></span>어울리는 무료 사진 찾는 중…'); await fillPhotos(false); }
     renderAll(true);
     if(want.length){
       setStatus('makeStatus','<span class="spin"></span>한국어 완성! '+want.map(l=>LANG_NAME[l]).join('·')+' 버전 만드는 중…');
@@ -771,6 +775,14 @@ function drawBlock(ctx, items, x, y, maxW, align){
   ctx.shadowColor='transparent'; ctx.shadowBlur=0;
   return y;
 }
+function imgBox(ctx, img, x, y, w, h, r){
+  ctx.save();
+  if(r){ roundRect(ctx, x, y, w, h, r); ctx.clip(); } else { ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip(); }
+  const s = Math.max(w/img.naturalWidth, h/img.naturalHeight);
+  const iw = img.naturalWidth*s, ih = img.naturalHeight*s;
+  ctx.drawImage(img, x+(w-iw)/2, y+(h-ih)/2, iw, ih);
+  ctx.restore();
+}
 function hexA(hex, a){ const n = parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function pill(ctx, text, x, y, bg, fg, font){
@@ -808,6 +820,7 @@ function drawCard(cv, lang, ci){
   const faint = dark ? 'rgba(255,255,255,.5)' : '#8a857b';
   const head = th==='paper' ? f.serif : f.sans;
   const photo = th==='photo' ? state.photos[ci] : null;
+  const inl = th!=='photo' && $('usePhoto').checked && c.kind!=='outro' ? state.photos[ci] : null;
   const dim = (+$('dim').value)/100;
 
   // 배경
@@ -824,6 +837,16 @@ function drawCard(cv, lang, ci){
     g.addColorStop(0, hexA(A,.22)); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
   }
 
+  // 카드 안 사진 (뉴스 다크·페이퍼)
+  const bgc = th==='paper' ? '#f4efe4' : '#0f0f12';
+  if(inl && c.kind==='cover' && th!=='paper'){
+    imgBox(ctx, inl.img, 0, 0, W, Math.round(H*0.64), 0);
+    const g = ctx.createLinearGradient(0, H*0.28, 0, H*0.64); g.addColorStop(0,'rgba(15,15,18,0)'); g.addColorStop(1, bgc);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, Math.round(H*0.64)+1);
+    const g2 = ctx.createLinearGradient(0,0,0,220); g2.addColorStop(0,'rgba(0,0,0,.45)'); g2.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g2; ctx.fillRect(0,0,W,220);
+  } else if(inl){
+    imgBox(ctx, inl.img, PAD, 136, W-PAD*2, c.kind==='cover'?600:520, th==='paper'?0:22);
+  }
   // 머리줄
   ctx.textBaseline = 'alphabetic';
   if(th==='paper'){
@@ -848,9 +871,9 @@ function drawCard(cv, lang, ci){
       {text:d.cover.title, size: lang==='en'?104:112, min:58, weight:900, family:head, color:ink, lhr:1.22, maxLines:4, gap:34, shadow},
       {text:d.cover.sub, size:44, min:30, weight:500, family:f.sans, color:sub, lhr:1.45, maxLines:3, gap:0, shadow}
     ];
-    const top = th==='paper' ? 200 : 260, bottom = H-170;
+    const top = th==='paper' ? (inl ? 750 : 200) : 260, bottom = H-170;
     const h = fitBlock(ctx, items, maxW, bottom-top-90, lang);
-    let y = th==='paper' ? Math.max(top+90, top + 90 + (bottom-top-90-h)/2 - 40) : bottom - h;
+    let y = th==='paper' ? (inl ? top+90 : Math.max(top+90, top + 90 + (bottom-top-90-h)/2 - 40)) : bottom - h;
     if(th!=='paper'){ pill(ctx, d.cover.kicker, PAD, y-104, A, '#fff', `800 32px ${f.sans}`); }
     else { ctx.fillStyle = A; ctx.fillRect(PAD, y-70, 120, 10); }
     drawBlock(ctx, items, PAD, y, maxW, 'left');
@@ -866,7 +889,14 @@ function drawCard(cv, lang, ci){
       {text:s.heading, size:76, min:46, weight:th==='paper'?900:800, family:head, color:ink, lhr:1.25, maxLines:3, gap:44, shadow},
       {text:s.body, size:52, min:32, weight:th==='paper'?500:500, family:th==='paper'?f.serif:f.sans, color:sub, lhr:1.62, maxLines:12, gap:0, shadow}
     ];
-    if(th==='photo'){
+    if(inl){
+      items[0].size = 64; items[1].size = 44; items[0].gap = 30; items[1].maxLines = 7;
+      const nY = 136+520+96;
+      ctx.font = `900 64px ${head}`; ctx.fillStyle = A; ctx.fillText(no, PAD-2, nY);
+      const y0 = nY + 40;
+      fitBlock(ctx, items, maxW, H-150-y0, lang);
+      drawBlock(ctx, items, PAD, y0, maxW, 'left');
+    } else if(th==='photo'){
       const h = fitBlock(ctx, items, maxW, H*0.5, lang);
       let y = H-170-h;
       ctx.font = `900 64px ${f.sans}`; ctx.fillStyle = A; ctx.fillText(no, PAD, y-40);
@@ -902,6 +932,15 @@ function drawCard(cv, lang, ci){
 
 /* ============ 결과 화면 ============ */
 const hasCards = () => !!state.data.ko;
+const wantPhotos = () => state.theme==='photo' || $('usePhoto').checked;
+function photoHint(){
+  const none = $('photoSrc').value==='none';
+  $('photoHint').innerHTML = !wantPhotos() ? '' : none
+    ? '⚠️ 설정의 "무료 사진 가져올 곳"에서 Pixabay·Pexels·Unsplash 중 하나를 골라야 사진이 자동으로 들어가요. (카드마다 📷 내 사진은 언제든 가능)'
+    : (state.theme==='photo' ? '사진이 카드 전체 배경으로 들어가요.' : '사진이 카드 위쪽에 들어가고, 글은 그 아래에 들어가요.');
+}
+$('usePhoto').addEventListener('change', async ()=>{ photoHint(); if(wantPhotos() && hasCards()) await fillPhotos(false); renderAll(true); });
+$('photoSrc').addEventListener('change', photoHint);
 function renderLangTabs(){
   const t = $('langTabs');
   t.classList.toggle('show', state.langs.length>1);
@@ -928,19 +967,19 @@ async function doRender(rebuild){
     box.innerHTML = list.map((c,ci)=>`<div class="card" data-ci="${ci}"><canvas></canvas><div class="ed">${editorHTML(d,c)}</div>
       <div class="ctl">
         <button class="btn sm ghost" type="button" data-act="png">⬇️ 이 장 저장</button>
-        ${state.theme==='photo' ? `<button class="btn sm ghost" type="button" data-act="shuffle">🔄 다른 사진</button><label class="btn sm ghost" style="margin:0">📷 내 사진<input type="file" accept="image/*" hidden data-act="up"></label>` : ''}
+        ${wantPhotos() && c.kind!=='outro' || state.theme==='photo' ? `<button class="btn sm ghost" type="button" data-act="shuffle">🔄 다른 사진</button><label class="btn sm ghost" style="margin:0">📷 내 사진<input type="file" accept="image/*" hidden data-act="up"></label>` : ''}
       </div><div class="credit"></div></div>`).join('');
     $('caption').value = d.caption + (d.hashtags.length ? '\n\n' + d.hashtags.map(h=>'#'+h).join(' ') : '') + creditLine();
   }
   [...box.children].forEach((el,ci)=>{
     drawCard(el.querySelector('canvas'), lang, ci);
     const p = state.photos[ci];
-    el.querySelector('.credit').textContent = state.theme==='photo' && p && p.credit ? p.credit : '';
+    el.querySelector('.credit').textContent = wantPhotos() && p && p.credit ? p.credit : '';
   });
   $('makeSources').innerHTML = sourcesHTML(state.sources) + (state.sources.length?'<br>':'') + '⚠️ 올리기 전에 사실관계를 한 번 확인해 주세요.';
 }
 function creditLine(){
-  if(state.theme!=='photo') return '';
+  if(!wantPhotos()) return '';
   const cr = [...new Set(state.photos.filter(p=>p&&p.credit).map(p=>p.credit))];
   return cr.length ? '\n\n' + cr.join(', ') : '';
 }
