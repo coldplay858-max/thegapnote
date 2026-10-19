@@ -132,9 +132,15 @@ input[type=range]{width:100%}
       <label for="photoSrc">무료 사진 가져올 곳 <small>(사진 디자인용)</small></label>
       <select id="photoSrc">
         <option value="none">사용 안 함 (내 사진만 직접 올리기)</option>
+        <option value="pixabay">Pixabay (픽사베이)</option>
         <option value="pexels">Pexels</option>
         <option value="unsplash">Unsplash</option>
       </select>
+      <div id="pixabayBox" style="display:none">
+        <label for="pixabayKey">Pixabay API 키</label>
+        <input type="password" id="pixabayKey" autocomplete="off">
+        <div class="hint"><a href="https://pixabay.com/api/docs/" target="_blank" rel="noopener">pixabay.com/api/docs</a> 에서 로그인하면 화면 중간 "Parameters → key" 칸에 내 키가 나와요 (무료)</div>
+      </div>
       <div id="pexelsBox" style="display:none">
         <label for="pexelsKey">Pexels API 키</label>
         <input type="password" id="pexelsKey" autocomplete="off">
@@ -228,7 +234,7 @@ input[type=range]{width:100%}
     <div class="photoOnly">
       <label for="dim">사진 어둡게 <small id="dimVal"></small></label>
       <input type="range" id="dim" min="0" max="90" value="55">
-      <div class="hint">사진은 설정에서 고른 무료 사진(Pexels/Unsplash)이 자동으로 들어가요. 카드마다 내 사진으로 바꿀 수도 있어요.</div>
+      <div class="hint">사진은 설정에서 고른 무료 사진(Pixabay/Pexels/Unsplash)이 자동으로 들어가요. 카드마다 내 사진으로 바꿀 수도 있어요.</div>
     </div>
     <label>포인트 색</label>
     <div class="swatches" id="swatches"></div>
@@ -275,7 +281,7 @@ function store(k,v){ try{ localStorage.setItem('icm_'+k, v); }catch(e){} }
 function load(k){ try{ return localStorage.getItem('icm_'+k) || ''; }catch(e){ return ''; } }
 function loadJSON(k,d){ try{ return JSON.parse(load(k)) || d; }catch(e){ return d; } }
 
-['geminiKey','gemModel','photoSrc','pexelsKey','unsplashKey','handle','tone','count','period'].forEach(id=>{
+['geminiKey','gemModel','photoSrc','pixabayKey','pexelsKey','unsplashKey','handle','tone','count','period'].forEach(id=>{
   const v = load(id); if(v) $(id).value = v;
   $(id).addEventListener('change', ()=>{ store(id, $(id).value); refreshSettings(); });
 });
@@ -284,6 +290,7 @@ function loadJSON(k,d){ try{ return JSON.parse(load(k)) || d; }catch(e){ return 
   $(id).addEventListener('change', ()=>store(id, $(id).checked?'1':'0'));
 });
 function refreshSettings(){
+  $('pixabayBox').style.display = $('photoSrc').value==='pixabay' ? 'block':'none';
   $('pexelsBox').style.display = $('photoSrc').value==='pexels' ? 'block':'none';
   $('unsplashBox').style.display = $('photoSrc').value==='unsplash' ? 'block':'none';
   const ok = !!$('geminiKey').value.trim();
@@ -595,6 +602,16 @@ function loadImg(src, cors){
 async function searchPhotos(q){
   const srcType = $('photoSrc').value;
   if(!q) return [];
+  if(srcType==='pixabay'){
+    const key = $('pixabayKey').value.trim(); if(!key) throw new Error('설정에서 Pixabay 키를 넣어 주세요.');
+    const r = await fetchTimeout('https://pixabay.com/api/?image_type=photo&orientation=vertical&safesearch=true&per_page=20&key='+encodeURIComponent(key)+'&q='+encodeURIComponent(q.slice(0,90)), {}, 20000);
+    if(r.status===400||r.status===401||r.status===403) throw new Error('Pixabay 키가 틀렸거나 검색어 문제예요. 키를 다시 복사해 넣어 주세요.');
+    if(r.status===429) throw new Error('Pixabay 사용량이 잠깐 꽉 찼어요. 1분 뒤 다시 해 주세요.');
+    const j = await r.json();
+    let list = (j.hits||[]).map(p=>({ url:p.largeImageURL||p.webformatURL, alt:p.webformatURL, credit:`Photo: ${p.user} / Pixabay` }));
+    if(!list.length && q.includes(' ')) return searchPhotos(q.split(' ').slice(0,2).join(' '));
+    return list;
+  }
   if(srcType==='pexels'){
     const key = $('pexelsKey').value.trim(); if(!key) throw new Error('설정에서 Pexels 키를 넣어 주세요.');
     const r = await fetchTimeout('https://api.pexels.com/v1/search?per_page=15&orientation=portrait&query='+encodeURIComponent(q), {headers:{Authorization:key}}, 20000);
@@ -632,11 +649,13 @@ async function fillPhotos(force){
       if(!list.length) continue;
       const pick = list[Math.floor(Math.random()*Math.min(list.length,6))];
       await setPhoto(i, pick); used.add(pick.url);
-    }catch(e){ setStatus('outStatus', esc(e.message), 'err'); return; }
+    }catch(e){ setStatus('outStatus', esc(e.message), 'err'); if(/키|꽉/.test(e.message)) return; }
   }
 }
 async function setPhoto(i, p){
-  const img = await loadImg(p.url, true);
+  let img;
+  try{ img = await loadImg(p.url, true); }
+  catch(e){ if(!p.alt) throw e; img = await loadImg(p.alt, true); }
   state.photos[i] = { img, url:p.url, credit:p.credit, list:null };
   if(p.ping) fetch(p.ping).catch(()=>{});
 }
@@ -949,7 +968,7 @@ $('cards').addEventListener('click', async e=>{
   const ci = +b.closest('.card').dataset.ci;
   if(b.dataset.act==='png'){ const blob = await cardBlob(ci); if(blob) downloadBlob(blob, fileName(ci)); }
   if(b.dataset.act==='shuffle'){
-    if($('photoSrc').value==='none'){ setStatus('outStatus','설정에서 무료 사진(Pexels/Unsplash)을 고르고 키를 넣으면 자동 사진을 쓸 수 있어요. 지금은 📷 내 사진으로 넣어 주세요.','err'); return; }
+    if($('photoSrc').value==='none'){ setStatus('outStatus','설정에서 무료 사진(Pixabay/Pexels/Unsplash)을 고르고 키를 넣으면 자동 사진을 쓸 수 있어요. 지금은 📷 내 사진으로 넣어 주세요.','err'); return; }
     shufflePhoto(ci);
   }
 });
