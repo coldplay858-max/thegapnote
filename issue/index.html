@@ -60,6 +60,9 @@ details.settings summary .keyok{margin-left:auto;font-size:12px;font-weight:600}
 .issue b{display:block;font-size:14.5px;margin-bottom:4px}
 .issue p{margin:0;font-size:13px;color:#3f3f46}
 .issue .meta{font-size:12px;color:var(--muted);margin-top:6px}
+.ithumbs{display:flex;gap:4px;margin-bottom:6px}
+.ithumbs:empty{display:none}
+.ithumbs img{width:64px;height:80px;object-fit:cover;border-radius:6px;background:#e7e3da}
 .picked{border:2px dashed var(--accent);border-radius:12px;padding:12px;font-size:13px;background:#fff8f7;display:none}
 .picked.show{display:block}
 .thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
@@ -214,6 +217,8 @@ input[type=range]{width:100%}
         <option value="최근 2주" selected>최근 2주</option>
         <option value="최근 1달">최근 1달</option>
       </select>
+      <div class="checks" style="margin-top:10px"><label><input type="checkbox" id="visualOnly" checked> 📸 사진으로 보여 주기 좋은 이슈 위주</label></div>
+      <div class="hint">켜 두면 동물·음식·장소·물건·풍경처럼 <b>사진이 딱 어울리는 이슈</b>를 골라 와요. 목록에 사진 미리보기도 같이 나와요.</div>
       <div class="tools"><button class="btn" id="btnFind" type="button">🔍 인기 해외 이슈 찾기</button></div>
       <div class="status" id="findStatus"></div>
       <div class="issues" id="issueList"></div>
@@ -359,7 +364,7 @@ function loadJSON(k,d){ try{ return JSON.parse(load(k)) || d; }catch(e){ return 
   const v = load(id); if(v) $(id).value = v;
   $(id).addEventListener('change', ()=>{ store(id, $(id).value); refreshSettings(); });
 });
-['useOutro','useSearch','langJa','langEn','usePhoto'].forEach(id=>{
+['useOutro','useSearch','langJa','langEn','usePhoto','visualOnly'].forEach(id=>{
   const v = load(id); if(v) $(id).checked = v==='1';
   $(id).addEventListener('change', ()=>store(id, $(id).checked?'1':'0'));
 });
@@ -533,7 +538,8 @@ $('btnFind').onclick = async ()=>{
 구글 검색으로 ${$('period').value} 안에 **한국 밖(해외)**에서 사람들이 많이 보고 공유한 화제 이야기를 찾아라.
 찾을 곳: 레딧 인기글(r/nottheonion, r/UpliftingNews, r/mildlyinteresting, r/AmItheAsshole, r/interestingasfuck 등), 해외 언론 많이 본 기사, X·틱톡에서 바이럴된 이야기, 일본·미국·유럽·중국 화제 뉴스.
 ${cat} 8개를 골라라.
-고르는 기준: 한국 사람이 보고 "헐", "대박", "이게 실화?" 하며 친구에게 공유할 만한 것. 사진이 없어도 글만으로 흥미로운 것.
+고르는 기준: 한국 사람이 보고 "헐", "대박", "이게 실화?" 하며 친구에게 공유할 만한 것.
+${$('visualOnly').checked ? '**사진으로 보여 주기 좋은 이야기만** 골라라: 동물, 음식, 여행지·건물·풍경, 신기한 물건·발명품, 집·인테리어, 자연현상, 패션처럼 눈에 보이는 장면이 핵심인 것. 말싸움·사연·논쟁처럼 글로만 된 이야기는 8개 중 2개 이하로.' : '사진이 없어도 글만으로 흥미로운 것.'}
 빼야 할 것: 정치 선거, 전쟁, 대형 참사, 범죄 피해자 이야기, 확인 안 된 루머, 한국 국내 이슈.
 이미 다룬 주제(비슷한 것도 제외): ${history().slice(0,30).join(' / ') || '없음'}
 각 항목은 아래 키를 가진 JSON 객체로:
@@ -543,6 +549,7 @@ ${cat} 8개를 골라라.
 "country": 나라,
 "source": 보도한 매체나 사이트 이름,
 "url": 기사나 글 주소(모르면 빈칸),
+"visual": 이 이야기를 보여 줄 무료 사진 검색어(영어 3~5단어, 눈에 보이는 장면. 예: cat birthday cake, old painting living room),
 "score": 공유될 가능성 1~10
 JSON 배열만 출력하고 다른 말은 쓰지 마라.`;
   try{
@@ -553,9 +560,11 @@ JSON 배열만 출력하고 다른 말은 쓰지 마라.`;
     if(!arr.length) throw new Error('이슈를 못 찾았어요. 분야를 바꿔서 다시 눌러 주세요.');
     state.issues = arr; state.findSources = r.sources;
     $('issueList').innerHTML = arr.map((x,i)=>`<button type="button" class="issue" data-i="${i}">
+      <span class="ithumbs" data-v="${esc(x.visual||'')}"></span>
       <b>${esc(x.title)}</b><p>${esc(x.summary)}</p>
       <div class="meta">${x.country?'🌍 '+esc(x.country)+' · ':''}${esc(x.source||'')}${x.why?' · 💬 '+esc(x.why):''}</div></button>`).join('');
     $('findSources').innerHTML = sourcesHTML(r.sources);
+    issueThumbs();
     setStatus('findStatus', `✅ ${arr.length}개 찾았어요. 마음에 드는 걸 누르세요.` + (r.noSearch ? '\n⚠️ 지금 키로는 구글 검색이 막혀 있어서 AI가 알고 있는 이슈로 골랐어요. 최신이 아닐 수 있으니 날짜를 꼭 확인하세요.' : ''), 'ok');
   }catch(e){ setStatus('findStatus', e.message, 'err'); }
   btn.disabled = false; state.busy = false;
@@ -564,8 +573,16 @@ $('issueList').addEventListener('click', e=>{
   const b = e.target.closest('.issue'); if(!b) return;
   [...$('issueList').children].forEach(x=>x.classList.toggle('on', x===b));
   const x = state.issues[+b.dataset.i];
-  pick({ title:x.title, summary:x.summary, why:x.why, country:x.country, source:x.source, url:x.url, images:[], sources:state.findSources||[] });
+  pick({ title:x.title, summary:x.summary, why:x.why, country:x.country, source:x.source, url:x.url, visual:x.visual, images:[], sources:state.findSources||[] });
 });
+
+async function issueThumbs(){
+  if($('photoSrc').value==='none') return;
+  for(const el of [...document.querySelectorAll('.ithumbs')]){
+    const v = el.dataset.v; if(!v) continue;
+    try{ const list = (await searchPhotos(v)).slice(0,3); el.innerHTML = list.map(x=>`<img src="${esc(x.thumb||x.url)}" alt="" loading="lazy">`).join(''); }catch(e){ if(/키|꽉/.test(e.message)) return; }
+  }
+}
 
 /* ============ 1-B. 내가 본 글 넣기 ============ */
 async function shrinkImage(file){
@@ -827,7 +844,7 @@ function cardText(ci){
   return `질문: ${ko.outro.title}\n${ko.outro.body}`;
 }
 async function queriesFromText(idxs){
-  const story = state.data.ko.slides.map(x=>x.heading+': '+x.body).join(' / ').slice(0,600);
+  const story = state.data.ko.slides.map(x=>x.heading+': '+x.body).join(' / ').slice(0,600) + (state.picked && state.picked.visual ? ` (핵심 장면 힌트: ${state.picked.visual})` : '');
   const prompt = `무료 사진 사이트(Pixabay)에서 카드뉴스 사진을 찾으려 한다. 각 카드의 글 내용을 읽고, 그 내용이 눈에 보이는 사진 검색어를 영어로 만들어라.
 [전체 이야기 요약] ${story}
 [카드들]
