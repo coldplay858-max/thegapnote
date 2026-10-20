@@ -66,12 +66,16 @@ details.settings summary .keyok{margin-left:auto;font-size:12px;font-weight:600}
 .thumbs div{position:relative}
 .thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
 .thumbs button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:var(--ink);color:#fff;font-size:11px;cursor:pointer}
-.themes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.themes{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.theme{font-size:11px!important;padding:4px!important}
 .theme{border:2px solid var(--line);border-radius:12px;padding:6px;background:#fff;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--ink)}
 .theme.on{border-color:var(--accent)}
 .theme i{display:block;aspect-ratio:4/5;border-radius:8px;margin-bottom:5px;position:relative;overflow:hidden}
 .t-dark i{background:#0f0f12}
 .t-white i{background:#fff;border:1px solid #e5e5e5}
+.t-mag i{background:linear-gradient(to bottom,#c9b8a6,#6b5a4c 60%,#2b231d)}
+.t-mag i::before{content:"MAG";position:absolute;top:8%;left:0;right:0;text-align:center;font:900 13px "Noto Serif KR",serif;letter-spacing:3px;color:#fff}
+.t-mag i::after{content:"";position:absolute;left:12%;right:25%;bottom:14%;height:9%;background:#fff;border-radius:1px}
 .t-white i::after{content:"";position:absolute;left:10%;right:10%;top:10%;height:42%;background:linear-gradient(#cfd8e3,#9fb0c4);border-radius:4px;box-shadow:0 30px 0 -8px #222}
 .t-dark i::after{content:"";position:absolute;left:12%;right:20%;bottom:22%;height:10%;background:#fff;border-radius:2px;box-shadow:0 -14px 0 -4px var(--accent)}
 .t-paper i{background:#f4efe4;border:1px solid #ddd}
@@ -108,6 +112,11 @@ details.settings summary .keyok{margin-left:auto;font-size:12px;font-weight:600}
 .adjh small{color:var(--muted);font-size:11px}
 .adjh .btn{margin-left:auto;padding:5px 9px;font-size:12px}
 .adj label{display:grid;grid-template-columns:34px 1fr;align-items:center;font-size:12px;font-weight:500;margin:2px 0}
+.picker{margin-top:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.picker[hidden]{display:none}
+.picker img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid transparent;background:#eee}
+.picker img:hover{border-color:var(--accent)}
+.picker .pmsg{grid-column:1/-1;font-size:12px;color:var(--muted)}
 .card .credit{font-size:11px;color:var(--muted);margin-top:4px}
 .outbar{position:sticky;top:52px;z-index:3;background:var(--bg);padding:8px 0;display:none;gap:8px;flex-wrap:wrap}
 .outbar.show{display:flex}
@@ -244,6 +253,7 @@ input[type=range]{width:100%}
 
     <label>디자인</label>
     <div class="themes" id="themes">
+      <button type="button" class="theme t-mag" data-theme="mag"><i></i>매거진</button>
       <button type="button" class="theme t-white" data-theme="white"><i></i>클린 화이트</button>
       <button type="button" class="theme t-dark on" data-theme="dark"><i></i>뉴스 다크</button>
       <button type="button" class="theme t-paper" data-theme="paper"><i></i>신문 페이퍼</button>
@@ -561,11 +571,11 @@ function shapeRule(n, outro){
   return `{
  "titles": [ 표지 제목 후보 5개. 패턴을 하나씩 다르게: "호기심갭", "반전예고", "숫자·구체성", "공감·감정이입", "몰랐던 사실". 각 {"pattern":"패턴이름", "title":"22자 이내, 가장 센 단어 하나를 ==이렇게== 감싸기", "sub":"30자 이내, 궁금증을 더 키우는 부제(답은 숨김)", "score": 클릭될 가능성 1~10} ],
  "cover": {"kicker":"작은 머리말(예: 해외이슈, 일본 화제, 美 레딧 난리)", "title":"titles 중 score가 가장 높은 제목", "sub":"그 제목의 부제"},
- "slides": [ ${n}개, 각 {"heading":"소제목 16자 이내", "body":"2~4문장, 90자 이내", "photo":"이 장면에 어울리는 무료 사진 검색어 영어 2~4단어(특정 인물 이름 X, 일반적인 장면)"} ],
+ "slides": [ ${n}개, 각 {"heading":"소제목 16자 이내", "body":"2~4문장, 90자 이내", "photo":"이 장에 딱 맞는 사진 검색어. 영어 3~5단어로 눈에 보이는 구체적 장면(사람·사물·장소·분위기). 예: tired office worker phone night / airplane window seat passenger / old painting living room wall. 특정 인물 이름·추상어(success, problem) 금지"} ],
  ${outro ? ($('outroType').value==='conclude'
    ? '"outro": {"title":"이 이야기의 결론을 한 문장으로 (20자 이내, 예: 결국 이긴 건 직원이었다)", "body":"생각해볼 만한 한마디 1~2문장 (교훈 강요·설교 X)"},'
    : '"outro": {"title":"대중에게 던지는 질문 (예: 여러분은 이거 선 넘었다고 보나요?, 여러분이라면 참을 수 있나요?)", "body":"고르기 쉬운 선택지나 생각할 거리 1~2문장 (예: 참는다 vs 바로 말한다)"},') : ''}
- "cover_photo": "표지용 사진 검색어 영어 2~4단어",
+ "cover_photo": "표지용 사진 검색어. 영어 3~5단어, 이야기 핵심 장면이 한눈에 보이게, 잡지 표지처럼 분위기 있는 사진 (예: woman looking at phone shocked)",
  "caption": "인스타 캡션 3~6줄. 첫 줄은 후킹. 마지막 줄은 '출처: 매체이름'",
  "hashtags": ["해시태그 8~12개, #없이"]
 }`;
@@ -710,11 +720,11 @@ async function searchPhotos(q){
     const tries = [[words.join(' '),'vertical'],[words.join(' '),'all'],[words.slice(0,2).join(' '),'all'],[words[0]||'city','all']];
     for(const [qq,ori] of tries){
       if(!qq) continue;
-      const r = await fetchTimeout('https://pixabay.com/api/?image_type=photo&safesearch=true&per_page=20&orientation='+ori+'&key='+encodeURIComponent(key)+'&q='+encodeURIComponent(qq.slice(0,90)), {}, 20000);
+      const r = await fetchTimeout('https://pixabay.com/api/?image_type=photo&safesearch=true&per_page=30&orientation='+ori+'&key='+encodeURIComponent(key)+'&q='+encodeURIComponent(qq.slice(0,90)), {}, 20000);
       if(r.status===400||r.status===401||r.status===403){ const t = await r.text().catch(()=>''); throw new Error('Pixabay 키가 틀렸어요. pixabay.com/api/docs 에서 key를 다시 복사해 넣어 주세요. ('+esc(t.slice(0,60))+')'); }
       if(r.status===429) throw new Error('Pixabay 사용량이 잠깐 꽉 찼어요. 1분 뒤 다시 해 주세요.');
       const j = await r.json();
-      const list = (j.hits||[]).map(p=>({ url:p.largeImageURL||p.webformatURL, alt:p.webformatURL, credit:`Photo: ${p.user} / Pixabay` }));
+      const list = (j.hits||[]).map(p=>({ url:p.largeImageURL||p.webformatURL, alt:p.webformatURL, thumb:p.webformatURL||p.previewURL, credit:`Photo: ${p.user} / Pixabay` }));
       if(list.length) return list;
     }
     return [];
@@ -724,14 +734,14 @@ async function searchPhotos(q){
     const r = await fetchTimeout('https://api.pexels.com/v1/search?per_page=15&orientation=portrait&query='+encodeURIComponent(q), {headers:{Authorization:key}}, 20000);
     if(r.status===401||r.status===403) throw new Error('Pexels 키가 틀렸어요.');
     const j = await r.json();
-    return (j.photos||[]).map(p=>({ url:p.src.large2x||p.src.portrait, credit:`Photo: ${p.photographer} / Pexels` }));
+    return (j.photos||[]).map(p=>({ url:p.src.large2x||p.src.portrait, thumb:p.src.medium||p.src.small, credit:`Photo: ${p.photographer} / Pexels` }));
   }
   if(srcType==='unsplash'){
     const key = $('unsplashKey').value.trim(); if(!key) throw new Error('설정에서 Unsplash 키를 넣어 주세요.');
     const r = await fetchTimeout('https://api.unsplash.com/search/photos?per_page=15&orientation=portrait&query='+encodeURIComponent(q)+'&client_id='+encodeURIComponent(key), {}, 20000);
     if(r.status===401||r.status===403) throw new Error('Unsplash 키가 틀렸어요.');
     const j = await r.json();
-    return (j.results||[]).map(p=>({ url:p.urls.regular, credit:`Photo: ${p.user.name} / Unsplash`, ping:p.links.download_location+'&client_id='+encodeURIComponent(key) }));
+    return (j.results||[]).map(p=>({ url:p.urls.regular, thumb:p.urls.small, credit:`Photo: ${p.user.name} / Unsplash`, ping:p.links.download_location+'&client_id='+encodeURIComponent(key) }));
   }
   return [];
 }
@@ -749,7 +759,8 @@ async function fillPhotos(force){
   const used = new Set(state.photos.filter(Boolean).map(p=>p.url));
   let ok = 0, fail = 0, lastErr = '';
   for(let i=0;i<qs.length;i++){
-    if(state.theme!=='photo' && cardList(state.data.ko)[i].kind==='outro') continue;
+    if(state.theme!=='photo' && state.theme!=='mag' && cardList(state.data.ko)[i].kind==='outro') continue;
+    if(state.theme==='mag' && cardList(state.data.ko)[i].kind==='outro') continue;
     if(!force && state.photos[i]){ ok++; continue; }
     try{
       const q = qs[i] || 'city';
@@ -791,6 +802,109 @@ async function uploadPhoto(i, file){
   const img = await loadImg(URL.createObjectURL(file));
   state.photos[i] = { img, url:'mine', credit:'' }; state.adj[i] = null;
   refreshCard(i);
+}
+
+async function openPicker(ci, card){
+  const pk = card.querySelector('.picker');
+  if(!pk.hidden && pk.dataset.loaded){ pk.hidden = true; return; }
+  if($('photoSrc').value==='none'){ setStatus('outStatus','설정에서 무료 사진(Pixabay/Pexels/Unsplash)을 골라 주세요.','err'); return; }
+  const qi = card.querySelector('[data-pq]'); if(qi) state.pq[ci] = qi.value.trim();
+  const q = photoQueries()[ci] || 'city';
+  pk.hidden = false; pk.innerHTML = '<div class="pmsg"><span class="spin"></span>"'+esc(q)+'" 사진 찾는 중…</div>';
+  try{
+    const list = (await searchPhotos(q)).slice(0, 12);
+    if(!list.length){ pk.innerHTML = '<div class="pmsg">사진이 없어요. 위 "사진 검색어"를 바꾸고 다시 눌러 주세요.</div>'; return; }
+    card._pick = list; pk.dataset.loaded = '1';
+    pk.innerHTML = '<div class="pmsg">마음에 드는 사진을 누르세요 · 검색어를 바꾸면 다른 사진이 나와요</div>' + list.map((x,k)=>`<img src="${esc(x.thumb||x.url)}" data-k="${k}" alt="후보 ${k+1}" loading="lazy">`).join('');
+  }catch(e){ pk.innerHTML = '<div class="pmsg">'+esc(e.message)+'</div>'; }
+}
+
+/* ============ 매거진 디자인 ============ */
+function spaced(ctx, px){ try{ ctx.letterSpacing = px+'px'; }catch(e){} }
+function drawMag(ctx, d, c, ci, total, lang, f){
+  const A = state.accent, handle = $('handle').value.trim();
+  const photo = state.photos[ci], adj = state.adj[ci];
+  const BG = '#f5f1ea', INK = '#141210';
+  const brand = (handle ? handle.replace(/^@/,'') : (d.cover.kicker||'ISSUE')).toUpperCase();
+  const now = new Date(); const vol = `VOL.${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  const maxW = W - PAD*2;
+  ctx.textBaseline = 'alphabetic';
+  if(c.kind==='cover'){
+    if(photo){ placeImg(ctx, photo.img, 0, 0, W, H, adj); } else { ctx.fillStyle='#2a2420'; ctx.fillRect(0,0,W,H); }
+    let g = ctx.createLinearGradient(0,0,0,360); g.addColorStop(0,'rgba(0,0,0,.5)'); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.fillRect(0,0,W,360);
+    g = ctx.createLinearGradient(0,H*0.45,0,H); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(0.6,'rgba(0,0,0,.62)'); g.addColorStop(1,'rgba(0,0,0,.85)'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    // 잡지 제호
+    ctx.fillStyle = '#fff'; spaced(ctx, 14);
+    let size = 120; ctx.font = `900 ${size}px ${f.serif}`;
+    while(ctx.measureText(brand).width > maxW && size > 54){ size -= 6; ctx.font = `900 ${size}px ${f.serif}`; }
+    const bw = ctx.measureText(brand).width; ctx.fillText(brand, (W-bw)/2 + 7, 70+size);
+    spaced(ctx, 6); ctx.font = `600 24px ${f.sans}`; ctx.fillStyle='rgba(255,255,255,.85)';
+    const line = `${vol}  ·  ${d.cover.kicker||''}`.toUpperCase(); const lw = ctx.measureText(line).width;
+    ctx.fillText(line, (W-lw)/2, 70+size+52);
+    ctx.fillStyle='rgba(255,255,255,.6)'; ctx.fillRect(PAD, 70+size+76, W-PAD*2, 2);
+    spaced(ctx, 0);
+    const items = [
+      {text:d.cover.title, size: lang==='en'?92:100, min:56, weight:900, family:f.serif, color:'#fff', hlColor:A, lhr:1.22, maxLines:4, gap:28, shadow:true},
+      {text:d.cover.sub, size:40, min:28, weight:500, family:f.sans, color:'rgba(255,255,255,.88)', lhr:1.45, maxLines:2, gap:0, shadow:true}
+    ];
+    const h = fitBlock(ctx, items, maxW, 560, lang); const y = H-150-h;
+    ctx.fillStyle = A; ctx.fillRect(PAD, y-46, 64, 6);
+    drawBlock(ctx, items, PAD, y, maxW, 'left');
+    ctx.font = `600 26px ${f.sans}`; ctx.fillStyle='rgba(255,255,255,.75)'; spaced(ctx, 3);
+    if(!REEL){ const sw = (SWIPE[lang]||SWIPE.ko); ctx.fillText(sw, W-PAD-ctx.measureText(sw).width, H-70); }
+    if(handle){ ctx.fillText(handle, PAD, H-70); }
+    spaced(ctx, 0);
+    if(photo && photo.credit){ ctx.font = `400 18px ${f.sans}`; ctx.fillStyle='rgba(255,255,255,.45)'; ctx.fillText(photo.credit, W-PAD-ctx.measureText(photo.credit).width, H-36); }
+    return;
+  }
+  ctx.fillStyle = BG; ctx.fillRect(0,0,W,H);
+  // 머리줄
+  spaced(ctx, 5); ctx.font = `700 22px ${f.sans}`; ctx.fillStyle = '#8a8176';
+  ctx.fillText(brand, PAD, 64);
+  const pg = `${String(ci+1).padStart(2,'0')} / ${String(total).padStart(2,'0')}`;
+  if(!REEL) ctx.fillText(pg, W-PAD-ctx.measureText(pg).width, 64);
+  spaced(ctx, 0);
+  ctx.fillStyle = '#cfc6ba'; ctx.fillRect(PAD, 84, W-PAD*2, 1.5);
+  if(c.kind==='slide'){
+    const s = d.slides[c.i];
+    let y0 = 150;
+    if(photo){
+      const ph = 640; imgBox(ctx, photo.img, 0, 108, W, ph, 0, adj);
+      if(photo.credit){ ctx.font = `400 18px ${f.sans}`; ctx.fillStyle='rgba(255,255,255,.7)'; ctx.fillText(photo.credit, W-PAD-ctx.measureText(photo.credit).width, 108+ph-18); }
+      y0 = 108 + ph + 70;
+    }
+    spaced(ctx, 6); ctx.font = `800 24px ${f.sans}`; ctx.fillStyle = A;
+    ctx.fillText(`NO.${String(c.i+1).padStart(2,'0')}`, PAD, y0); spaced(ctx, 0);
+    const items = [
+      {text:s.heading, size: photo?66:84, min:44, weight:900, family:f.serif, color:INK, lhr:1.25, maxLines:3, gap:26},
+      {text:s.body, size: photo?40:48, min:28, weight:400, family:f.sans, color:'#3b3631', lhr:1.72, maxLines: photo?6:12, gap:0}
+    ];
+    const top = y0 + 30;
+    const hh = fitBlock(ctx, items, maxW, H-130-top, lang);
+    drawBlock(ctx, [items[0]], PAD, top, maxW, 'left');
+    const yRule = top + items[0].h + 6;
+    ctx.fillStyle = INK; ctx.fillRect(PAD, yRule, 70, 3);
+    drawBlock(ctx, [items[1]], PAD, yRule + 30, maxW, 'left');
+    void hh;
+  } else {
+    // 마무리: 인용 부호 스타일
+    ctx.font = `900 260px ${f.serif}`; ctx.fillStyle = hexA(A,.9);
+    const q = '“'; ctx.fillText(q, (W-ctx.measureText(q).width)/2, 470);
+    const items = [
+      {text:d.outro.title, size:78, min:46, weight:900, family:f.serif, color:INK, lhr:1.3, maxLines:4, gap:36},
+      {text:d.outro.body, size:42, min:28, weight:400, family:f.sans, color:'#4a443e', lhr:1.6, maxLines:4, gap:0}
+    ];
+    const h = fitBlock(ctx, items, maxW-60, 560, lang);
+    drawBlock(ctx, items, PAD+30, 520, maxW-60, 'center');
+    const cm = d.outro.kind==='conclude' ? '' : {ko:'여러분의 생각을 댓글로 남겨 주세요', ja:'みなさんの意見をコメントで', en:'Tell us what you think'}[lang];
+    if(cm){ spaced(ctx, 2); ctx.font = `600 28px ${f.sans}`; ctx.fillStyle = '#8a8176'; ctx.fillText(cm, (W-ctx.measureText(cm).width)/2, Math.min(H-170, 520+h+90)); spaced(ctx,0); }
+  }
+  // 아래
+  ctx.fillStyle = '#cfc6ba'; ctx.fillRect(PAD, H-108, W-PAD*2, 1.5);
+  spaced(ctx, 3); ctx.font = `600 22px ${f.sans}`; ctx.fillStyle = '#8a8176';
+  if(handle) ctx.fillText(handle, PAD, H-66);
+  const tag = (d.cover.kicker||'').toUpperCase(); ctx.fillText(tag, W-PAD-ctx.measureText(tag).width, H-66);
+  spaced(ctx, 0);
 }
 
 /* ============ 카드 그리기 ============ */
@@ -932,6 +1046,7 @@ function drawCard(cv, lang, ci){
   const ctx = cv.getContext('2d');
   const f = fonts(lang); const th = state.theme; const A = state.accent;
   const total = list.length; const handle = $('handle').value.trim();
+  if(th==='mag'){ try{ ctx.letterSpacing='0px'; }catch(e){} drawMag(ctx, d, c, ci, total, lang, f); try{ ctx.letterSpacing='0px'; }catch(e){} return; }
   const light = th==='paper' || th==='white';
   const dark = !light;
   const ink = dark ? '#ffffff' : '#161616';
@@ -1057,8 +1172,8 @@ function drawCard(cv, lang, ci){
 
 /* ============ 결과 화면 ============ */
 const hasCards = () => !!state.data.ko;
-const photoUI = c => state.theme==='photo' || ($('usePhoto').checked && c.kind!=='outro');
-const wantPhotos = () => state.theme==='photo' || $('usePhoto').checked;
+const photoUI = c => state.theme==='photo' || ((state.theme==='mag' || $('usePhoto').checked) && c.kind!=='outro');
+const wantPhotos = () => state.theme==='photo' || state.theme==='mag' || $('usePhoto').checked;
 function photoHint(){
   const none = $('photoSrc').value==='none';
   $('photoHint').innerHTML = !wantPhotos() ? '' : none
@@ -1094,13 +1209,14 @@ async function doRender(rebuild){
     box.innerHTML = list.map((c,ci)=>`<div class="card" data-ci="${ci}"><canvas></canvas><div class="ed">${editorHTML(d,c)}</div>
       ${photoUI(c) ? `<div class="ed"><label class="lb">사진 검색어 <small>(영어가 더 정확해요 · 바꾸고 🔄 누르기)</small></label><input type="text" data-pq="${ci}" value="${esc(photoQueries()[ci]||'')}"></div>` : ''}
       <div class="ctl">
-        ${photoUI(c) ? `<button class="btn sm ghost" type="button" data-act="shuffle">🔄 사진 바꾸기</button><label class="btn sm ghost" style="margin:0">📷 내 사진 올리기<input type="file" accept="image/*" hidden data-act="up"></label>` : ''}
+        ${photoUI(c) ? `<button class="btn sm accent" type="button" data-act="pick">🖼️ 사진 고르기</button><button class="btn sm ghost" type="button" data-act="shuffle">🔄 랜덤</button><label class="btn sm ghost" style="margin:0">📷 내 사진 올리기<input type="file" accept="image/*" hidden data-act="up"></label>` : ''}
         <button class="btn sm" type="button" data-act="png" style="margin-left:auto">⬇️ PNG 저장</button>
       </div>
       ${photoUI(c) ? `<div class="adj"><div class="adjh"><b>사진 조절</b> <small>PC는 사진을 끌어서 옮겨도 돼요</small><button class="btn sm ghost" type="button" data-act="reset">원래대로</button></div>
         <label>크기<input type="range" min="100" max="300" value="${Math.round(((state.adj[ci]||{}).z||1)*100)}" data-adj="z"></label>
         <label>좌우<input type="range" min="-100" max="100" value="${Math.round(((state.adj[ci]||{}).x||0)*100)}" data-adj="x"></label>
         <label>상하<input type="range" min="-100" max="100" value="${Math.round(((state.adj[ci]||{}).y||0)*100)}" data-adj="y"></label></div>` : ''}
+      <div class="picker" hidden></div>
       <div class="credit"></div></div>`).join('');
     $('caption').value = d.caption + (d.hashtags.length ? '\n\n' + d.hashtags.map(h=>'#'+h).join(' ') : '') + creditLine();
   }
@@ -1136,6 +1252,14 @@ $('cards').addEventListener('input', e=>{
   clearTimeout(card._t); card._t = setTimeout(async ()=>{ await ensureFonts(state.lang); [...$('cards').children].forEach((el,ci)=>drawCard(el.querySelector('canvas'), state.lang, ci)); }, 150);
 });
 $('cards').addEventListener('click', async e=>{
+  const pim = e.target.closest('.picker img');
+  if(pim){
+    const card = pim.closest('.card'), ci = +card.dataset.ci, item = card._pick[+pim.dataset.k];
+    const pk = card.querySelector('.picker'); pk.innerHTML = '<div class="pmsg"><span class="spin"></span>사진 넣는 중…</div>';
+    try{ await setPhoto(ci, item); pk.hidden = true; refreshCard(ci); setStatus('outStatus','📷 사진을 바꿨어요.','ok'); }
+    catch(err){ pk.innerHTML = '<div class="pmsg">이 사진은 못 불러왔어요. 다른 걸 골라 주세요.</div>'; }
+    return;
+  }
   const tc = e.target.closest('.tcand');
   if(tc){
     const d = state.data[state.lang]; const t = d.titles[+tc.dataset.ti];
@@ -1151,6 +1275,7 @@ $('cards').addEventListener('click', async e=>{
   const ci = +b.closest('.card').dataset.ci;
   if(b.dataset.act==='png'){ const blob = await cardBlob(ci); if(blob) downloadBlob(blob, fileName(ci)); }
   if(b.dataset.act==='retitle'){ retitle(b); return; }
+  if(b.dataset.act==='pick'){ openPicker(ci, b.closest('.card')); return; }
   if(b.dataset.act==='reset'){ state.adj[ci] = null; const el=b.closest('.card'); el.querySelector('[data-adj=z]').value=100; el.querySelector('[data-adj=x]').value=0; el.querySelector('[data-adj=y]').value=0; redrawCard(ci); return; }
   if(b.dataset.act==='shuffle'){
     const qi = b.closest('.card').querySelector('[data-pq]'); if(qi) state.pq[ci] = qi.value.trim();
@@ -1220,7 +1345,7 @@ async function reelScenes(lang){
       let base = '#111';
       try{ const px = card.getContext('2d').getImageData(8, H-8, 1, 1).data; base = `rgb(${px[0]*.55|0},${px[1]*.55|0},${px[2]*.55|0})`; }catch(e){}
       b.fillStyle = base; b.fillRect(0,0,RW,RH);
-      b.filter = (state.theme==='paper'||state.theme==='white') ? 'blur(46px) brightness(0.92)' : 'blur(46px) brightness(0.55)';
+      b.filter = (state.theme==='paper'||state.theme==='white'||state.theme==='mag') ? 'blur(46px) brightness(0.92)' : 'blur(46px) brightness(0.55)';
       const s = Math.max(RW/W, RH/H)*1.35; b.drawImage(card, (RW-W*s)/2, (RH-H*s)/2, W*s, H*s);
       b.filter = 'none';
       scenes.push({ card, bg, dur: list[i].kind==='cover' ? +$('reelCoverSec').value : +$('reelSec').value, kind:list[i].kind });
