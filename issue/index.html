@@ -61,6 +61,13 @@ details.settings summary .keyok{margin-left:auto;font-size:12px;font-weight:600}
 .issue p{margin:0;font-size:13px;color:#3f3f46}
 .issue .meta{font-size:12px;color:var(--muted);margin-top:6px}
 .ithumbs{display:flex;gap:4px;margin-bottom:6px}
+.ptag{display:inline-block;font-size:11.5px;font-weight:700;border-radius:99px;padding:3px 9px;margin-bottom:6px}
+.ptag.yes{background:#e8f4ff;color:#1559b7}
+.ptag.no{background:#f1efe9;color:#6b6b73}
+.porig{margin-top:8px;font-size:12.5px;background:#f5f9ff;border:1px solid #d6e6fb;border-radius:8px;padding:8px 10px;color:#264b7a}
+.porig a{display:inline-block;margin:4px 6px 0 0;padding:5px 9px;border-radius:7px;background:#1559b7;color:#fff;text-decoration:none;font-weight:700;font-size:12px}
+.porig a.alt{background:#fff;color:#1559b7;border:1px solid #9cc1ee}
+.issue[role=button]{cursor:pointer}
 .ithumbs:empty{display:none}
 .ithumbs img{width:64px;height:80px;object-fit:cover;border-radius:6px;background:#e7e3da}
 .picked{border:2px dashed var(--accent);border-radius:12px;padding:12px;font-size:13px;background:#fff8f7;display:none}
@@ -217,7 +224,7 @@ input[type=range]{width:100%}
         <option value="최근 2주" selected>최근 2주</option>
         <option value="최근 1달">최근 1달</option>
       </select>
-      <div class="checks" style="margin-top:10px"><label><input type="checkbox" id="visualOnly" checked> 📸 사진으로 보여 주기 좋은 이슈 위주</label></div>
+      <div class="checks" style="margin-top:10px"><label><input type="checkbox" id="visualOnly"> 📸 사진으로 보여 주기 좋은 이슈 위주</label></div>
       <div class="hint">켜 두면 동물·음식·장소·물건·풍경처럼 <b>사진이 딱 어울리는 이슈</b>를 골라 와요. 목록에 사진 미리보기도 같이 나와요.</div>
       <div class="tools"><button class="btn" id="btnFind" type="button">🔍 인기 해외 이슈 찾기</button></div>
       <div class="status" id="findStatus"></div>
@@ -302,6 +309,7 @@ input[type=range]{width:100%}
 <div class="main">
   <div class="tabs langtabs" id="langTabs"></div>
   <div class="empty" id="empty"><b>① 이슈를 고르고 ② 캐러셀 만들기를 누르세요</b>카드 글은 아래 칸에서 바로 고칠 수 있고, PNG로 저장하거나 폰에서 인스타로 바로 공유할 수 있어요.</div>
+  <div class="porig" id="origNote" style="display:none;margin-bottom:10px"></div>
   <div class="outbar" id="outbar">
     <button class="btn accent" id="btnSaveAll" type="button">⬇️ 전부 한 번에 저장</button>
     <button class="btn" id="btnShare" type="button">📤 인스타 공유</button>
@@ -548,7 +556,9 @@ ${$('visualOnly').checked ? '**사진으로 보여 주기 좋은 이야기만** 
 "why": 왜 화제인지 1문장,
 "country": 나라,
 "source": 보도한 매체나 사이트 이름,
-"url": 기사나 글 주소(모르면 빈칸),
+"url": 원본 기사나 글 주소(정확히 아는 것만, 모르면 빈칸),
+"has_photo": 원본 기사·게시물에 실제 사진이나 영상이 있으면 true, 레딧 사연처럼 글만 있으면 false,
+"photo_desc": has_photo가 true면 원본 사진에 뭐가 찍혀 있는지 한국어로 짧게(예: 32살 고양이가 케이크 앞에 앉은 사진), false면 빈칸,
 "visual": 이 이야기를 보여 줄 무료 사진 검색어(영어 3~5단어, 눈에 보이는 장면. 예: cat birthday cake, old painting living room),
 "score": 공유될 가능성 1~10
 JSON 배열만 출력하고 다른 말은 쓰지 마라.`;
@@ -559,10 +569,12 @@ JSON 배열만 출력하고 다른 말은 쓰지 마라.`;
     arr = arr.filter(x=>x && x.title).sort((a,b)=>(b.score||0)-(a.score||0));
     if(!arr.length) throw new Error('이슈를 못 찾았어요. 분야를 바꿔서 다시 눌러 주세요.');
     state.issues = arr; state.findSources = r.sources;
-    $('issueList').innerHTML = arr.map((x,i)=>`<button type="button" class="issue" data-i="${i}">
+    $('issueList').innerHTML = arr.map((x,i)=>`<div role="button" tabindex="0" class="issue" data-i="${i}">
+      <div class="ptag ${x.has_photo?'yes':'no'}">${x.has_photo?'📷 원본 사진 있음':'📝 글만 있는 사연 → 픽사베이 사진으로'}</div>
       <span class="ithumbs" data-v="${esc(x.visual||'')}"></span>
       <b>${esc(x.title)}</b><p>${esc(x.summary)}</p>
-      <div class="meta">${x.country?'🌍 '+esc(x.country)+' · ':''}${esc(x.source||'')}${x.why?' · 💬 '+esc(x.why):''}</div></button>`).join('');
+      <div class="meta">${x.country?'🌍 '+esc(x.country)+' · ':''}${esc(x.source||'')}${x.why?' · 💬 '+esc(x.why):''}</div>
+      ${x.has_photo ? `<div class="porig">${x.photo_desc?'원본 사진: '+esc(x.photo_desc)+'<br>':''}${origLinks(x)}</div>` : ''}</div>`).join('');
     $('findSources').innerHTML = sourcesHTML(r.sources);
     issueThumbs();
     setStatus('findStatus', `✅ ${arr.length}개 찾았어요. 마음에 드는 걸 누르세요.` + (r.noSearch ? '\n⚠️ 지금 키로는 구글 검색이 막혀 있어서 AI가 알고 있는 이슈로 골랐어요. 최신이 아닐 수 있으니 날짜를 꼭 확인하세요.' : ''), 'ok');
@@ -570,17 +582,27 @@ JSON 배열만 출력하고 다른 말은 쓰지 마라.`;
   btn.disabled = false; state.busy = false;
 };
 $('issueList').addEventListener('click', e=>{
+  if(e.target.closest('a')) return;
   const b = e.target.closest('.issue'); if(!b) return;
   [...$('issueList').children].forEach(x=>x.classList.toggle('on', x===b));
   const x = state.issues[+b.dataset.i];
-  pick({ title:x.title, summary:x.summary, why:x.why, country:x.country, source:x.source, url:x.url, visual:x.visual, images:[], sources:state.findSources||[] });
+  pick({ title:x.title, summary:x.summary, why:x.why, country:x.country, source:x.source, url:x.url, visual:x.visual, has_photo:!!x.has_photo, photo_desc:x.photo_desc||'', images:[], sources:state.findSources||[] });
 });
 
+function origLinks(x){
+  const q = [x.source, x.title, x.photo_desc].filter(Boolean).join(' ');
+  const qEn = [x.source, x.visual].filter(Boolean).join(' ');
+  const a = [];
+  if(x.url && /^https?:\/\//.test(x.url)) a.push(`<a href="${esc(x.url)}" target="_blank" rel="noopener">🔗 원본 기사 열기</a>`);
+  a.push(`<a class="${a.length?'alt':''}" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}" target="_blank" rel="noopener">🖼️ 구글 이미지에서 원본 찾기</a>`);
+  if(qEn) a.push(`<a class="alt" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(qEn)}" target="_blank" rel="noopener">영어로 찾기</a>`);
+  return a.join('');
+}
 async function issueThumbs(){
   if($('photoSrc').value==='none') return;
   for(const el of [...document.querySelectorAll('.ithumbs')]){
     const v = el.dataset.v; if(!v) continue;
-    try{ const list = (await searchPhotos(v)).slice(0,3); el.innerHTML = list.map(x=>`<img src="${esc(x.thumb||x.url)}" alt="" loading="lazy">`).join(''); }catch(e){ if(/키|꽉/.test(e.message)) return; }
+    try{ const list = (await searchPhotos(v)).slice(0,3); el.innerHTML = list.map(x=>`<img src="${esc(x.thumb||x.url)}" alt="" loading="lazy">`).join('') + (list.length?'<small style="align-self:flex-end;font-size:10.5px;color:#999">픽사베이<br>미리보기</small>':''); }catch(e){ if(/키|꽉/.test(e.message)) return; }
   }
 }
 
@@ -613,7 +635,7 @@ $('btnUseMine').onclick = ()=>{
 function pick(issue){
   state.picked = issue;
   $('picked').classList.add('show');
-  $('picked').innerHTML = `<b>선택한 이슈</b><br>${issue.title?esc(issue.title)+'<br>':''}<span style="color:#555">${esc((issue.summary||'').slice(0,140))}${(issue.summary||'').length>140?'…':''}</span>${issue.images&&issue.images.length?`<br>📷 캡처 ${issue.images.length}장`:''}${issue.url?`<br>🔗 ${esc(issue.url)}`:''}`;
+  $('picked').innerHTML = `<b>선택한 이슈</b><br>${issue.title?esc(issue.title)+'<br>':''}<span style="color:#555">${esc((issue.summary||'').slice(0,140))}${(issue.summary||'').length>140?'…':''}</span>${issue.images&&issue.images.length?`<br>📷 캡처 ${issue.images.length}장`:''}${issue.url?`<br>🔗 ${esc(issue.url)}`:''}${issue.has_photo?`<div class="porig">📷 원본 사진이 있는 이슈예요. 카드는 일단 픽사베이 사진으로 만들어 둘게요.<br>${origLinks(issue)}</div>`:''}`;
   $('btnMake').disabled = false;
   setStatus('makeStatus','이제 아래에서 말투·장수·디자인을 고르고 <b>캐러셀 만들기</b>를 누르세요.');
   if(matchMedia('(max-width:959px)').matches) $('btnMake').scrollIntoView({behavior:'smooth', block:'center'});
@@ -714,6 +736,10 @@ ${shapeRule(n, outro)}`;
       setStatus('makeStatus','<span class="spin"></span>한국어 완성! '+want.map(l=>LANG_NAME[l]).join('·')+' 버전 만드는 중…');
       await translateTo(want);
     }
+    if(p.has_photo){
+      $('origNote').style.display = 'block';
+      $('origNote').innerHTML = `<b>📷 원본 사진이 있는 이슈예요</b> — 지금은 픽사베이 사진이 들어가 있어요.<br>${p.photo_desc?'원본 사진: '+esc(p.photo_desc)+'<br>':''}① 아래 버튼으로 원본 사진을 찾아 저장 → ② 바꾸고 싶은 카드의 <b>📷 내 사진 올리기</b>로 넣으세요. (사용해도 되는 사진인지 꼭 확인)<br>${origLinks(p)}`;
+    } else { $('origNote').style.display = 'none'; }
     const ML = $('mainLang').value;
     if(ML!=='ko' && state.data[ML]){ state.lang = ML; $('saveAllLangs').checked = false; renderAll(true); }
     else $('saveAllLangs').checked = true;
