@@ -378,7 +378,7 @@ input[type=range]{width:100%}
 /* ============ 기본 ============ */
 const $ = id => document.getElementById(id);
 const W = 1080, H = 1350, PAD = 84;
-let REEL = false;
+let REEL = false, REEL_SUBS = false;
 const CATS = ['전체 랜덤','황당·신기','감동·훈훈','연애·사연','동물','연예·셀럽','직장·돈','음식·여행','테크·AI','논란·토론'];
 const COLORS = ['#ff3b30','#ffcc00','#2f6bff','#00c27a','#ff5fa2','#8b5cf6','#ff8a00'];
 const LANG_NAME = { ko:'한국어', ja:'日本語', en:'English' };
@@ -719,7 +719,7 @@ const TONES = {
 function shapeRule(n, outro, single){
   if(single) return `{
  "titles": [ 표지 제목 후보 5개. 패턴을 하나씩 다르게. 각 {"pattern":"패턴이름", "title":"22자 이내, 가장 센 단어 하나를 ==이렇게== 감싸기", "sub":"30자 이내, 캡션을 펼쳐 보고 싶게 만드는 부제(답은 숨김)", "score": 1~10} ],
- "cover": {"kicker":"작은 머리말", "title":"titles 중 score 가장 높은 제목", "sub":"그 부제"},
+ "cover": {"kicker":"2~6글자 짧은 머리말 단어 (예: 해외이슈, 美 화제, 日 화제). 문장 금지", "title":"titles 중 score 가장 높은 제목", "sub":"그 부제"},
  "slides": [],
  "cover_photo": "사진 검색어. 영어 3~5단어, 이야기 핵심 장면이 한눈에 보이는 분위기 있는 사진",
  "caption": "긴 캡션 (아래 [긴 캡션 규칙]대로, 줄바꿈은 \\n 으로)",
@@ -727,7 +727,7 @@ function shapeRule(n, outro, single){
 }`;
   return `{
  "titles": [ 표지 제목 후보 5개. 패턴을 하나씩 다르게: "호기심갭", "반전예고", "숫자·구체성", "공감·감정이입", "몰랐던 사실". 각 {"pattern":"패턴이름", "title":"22자 이내, 가장 센 단어 하나를 ==이렇게== 감싸기", "sub":"30자 이내, 궁금증을 더 키우는 부제(답은 숨김)", "score": 클릭될 가능성 1~10} ],
- "cover": {"kicker":"작은 머리말(예: 해외이슈, 일본 화제, 美 레딧 난리)", "title":"titles 중 score가 가장 높은 제목", "sub":"그 제목의 부제"},
+ "cover": {"kicker":"2~6글자 짧은 머리말 단어 (예: 해외이슈, 美 화제, 日 화제). 문장 금지", "title":"titles 중 score가 가장 높은 제목", "sub":"그 제목의 부제"},
  "slides": [ ${n}개, 각 {"heading":"소제목 16자 이내", "body":"2~4문장, 90자 이내", "photo":"이 장에 딱 맞는 사진 검색어. 영어 3~5단어로 눈에 보이는 구체적 장면(사람·사물·장소·분위기). 예: tired office worker phone night / airplane window seat passenger / old painting living room wall. 특정 인물 이름·추상어(success, problem) 금지"} ],
  ${outro ? ($('outroType').value==='conclude'
    ? '"outro": {"title":"이 이야기의 결론을 한 문장으로 (20자 이내, 예: 결국 이긴 건 직원이었다)", "body":"생각해볼 만한 한마디 1~2문장 (교훈 강요·설교 X)"},'
@@ -817,7 +817,7 @@ ${shapeRule(n, outro, single)}`;
 function normalize(d, n, outro){
   const s = v => String(v==null?'':v).trim();
   const out = {
-    cover:{ kicker:s(d.cover&&d.cover.kicker)||'해외이슈', title:s(d.cover&&d.cover.title)||'제목', sub:s(d.cover&&d.cover.sub) },
+    cover:{ kicker:(k=>k && k.length<=12 && !/[.?!。]$/.test(k) ? k : '해외이슈')(s(d.cover&&d.cover.kicker)), title:s(d.cover&&d.cover.title)||'제목', sub:s(d.cover&&d.cover.sub) },
     slides:(Array.isArray(d.slides)?d.slides:[]).slice(0,n).map(x=>({heading:s(x.heading), body:s(x.body), photo:s(x.photo)})),
     outro: outro ? { kind:$('outroType').value, title:s(d.outro&&d.outro.title)||($('outroType').value==='conclude'?'결론':'여러분 생각은 어때요?'), body:s(d.outro&&d.outro.body) } : null,
     cover_photo:s(d.cover_photo),
@@ -1559,7 +1559,10 @@ async function reelScenes(lang){
   REEL = true;
   try{
     for(let i=0;i<list.length;i++){
-      const card = document.createElement('canvas'); drawCard(card, lang, i);
+      const card = document.createElement('canvas');
+      const d0 = state.data[lang]; const subBak = d0.cover.sub;
+      if(REEL_SUBS && list[i].kind==='cover') d0.cover.sub = '\u2800'.repeat(Math.max(8, subBak.length));  // 자리만 남기고 글자는 숨김 → 자막이 그 자리에
+      try{ drawCard(card, lang, i); } finally { d0.cover.sub = subBak; }
       const bg = document.createElement('canvas'); bg.width = RW; bg.height = RH;
       const b = bg.getContext('2d');
       let base = '#111';
@@ -1582,10 +1585,13 @@ function reelFrame(ctx, scenes, t, lang){
   const drawScene = (S, uu, alpha)=>{
     ctx.globalAlpha = alpha;
     ctx.drawImage(S.bg, 0, 0);
-    const z = $('reelZoom').checked ? 1 + 0.035*Math.min(1, uu/S.dur) : 1;
+    const pr = Math.min(1, uu/Math.max(0.01,S.dur));
+    const amt = S.dur > 8 ? 0.10 : S.dur > 4 ? 0.06 : 0.035;
+    const z = $('reelZoom').checked ? 1 + amt*pr : 1;
+    const drift = $('reelZoom').checked && S.dur > 8 ? Math.sin(pr*Math.PI)*18 : 0;
     const w = W*z, h = H*z, y0 = (RH-H)/2 + 40;
     ctx.save(); ctx.shadowColor='rgba(0,0,0,.45)'; ctx.shadowBlur=40;
-    ctx.drawImage(S.card, (RW-w)/2, y0 + (H-h)/2, w, h); ctx.restore();
+    ctx.drawImage(S.card, (RW-w)/2 + drift, y0 + (H-h)/2, w, h); ctx.restore();
     ctx.globalAlpha = 1;
   };
   drawScene(sc, u, 1);
@@ -1635,7 +1641,7 @@ ${cards}
 ${single ? '[캡션(이야기 전체)]\n'+d.caption.slice(0,1200) : ''}
 규칙:
 - ${single ? '카드가 1장뿐이니 모든 줄의 scene은 1. 캡션의 이야기를 처음부터 끝까지 들려준다.' : '각 줄의 scene은 그 줄이 나올 때 보여 줄 카드 번호. 카드 순서대로, 카드마다 1~3줄.'}
-- 전체 8~16줄. 한 줄은 한 문장, ${lang==='ko'?'30자':lang==='ja'?'28字':'12 words'} 이내 (자막 한 줄에 들어가게).
+- 전체 ${single ? '8~11줄 (영상이 25~35초가 되게)' : '8~14줄'}. 한 줄은 한 문장, ${lang==='ko'?'30자':lang==='ja'?'28字':'12 words'} 이내 (자막 한 줄에 들어가게).
 - 첫 줄은 궁금하게 시작, 마지막 줄은 대중에게 묻는 질문과 선택지 (예: 여러분이라면, 거절한다 vs 바꿔 준다?).
 - 이모지·해시태그·괄호 설명·"너라면" 금지. 숫자는 읽기 쉽게.
 JSON 배열만 출력: [{"scene":카드번호, "text":"..."}]`;
@@ -1751,7 +1757,7 @@ function drawSub(ctx, text, lang){
   const h = fitBlock(ctx, items, maxW, 170, lang);
   ctx.font = `${items[0].weight} ${items[0].px}px ${items[0].family}`;
   const lw = Math.max(...items[0].lines.map(l=>lineW(ctx,l)));
-  const cy = RH*0.80, bx = (RW-lw)/2-28, by = cy-h/2-18;
+  const cy = RH*0.84, bx = (RW-lw)/2-28, by = cy-h/2-18;
   ctx.fillStyle = 'rgba(0,0,0,.72)'; roundRect(ctx, bx, by, lw+56, h+36, 18); ctx.fill();
   drawBlock(ctx, items, (RW-maxW)/2, cy-h/2, maxW, 'center');
 }
@@ -1835,7 +1841,9 @@ $('btnReel').onclick = async ()=>{
   const lang = state.lang;
   try{
     setStatus('reelStatus','<span class="spin"></span>영상 준비 중…');
+    REEL_SUBS = $('useSubs').checked && ($('useNarr').checked || $('useSubs').checked);
     const scenes = await reelScenes(lang);
+    REEL_SUBS = false;
     if($('useNarr').checked || $('useSubs').checked){
       if(!$('narrText').value.trim()){ setStatus('reelStatus','<span class="spin"></span>나레이션 대본 쓰는 중…'); await makeNarrScript(); }
       const segs = parseNarr();
