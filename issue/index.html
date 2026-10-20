@@ -1388,16 +1388,17 @@ async function doRender(rebuild){
   const box = $('cards');
   if(rebuild || box.children.length !== list.length || box.dataset.lang !== lang){
     box.dataset.lang = lang;
-    box.innerHTML = list.map((c,ci)=>`<div class="card" data-ci="${ci}"><canvas></canvas><div class="ed">${editorHTML(d,c)}</div>
+    box.innerHTML = list.map((c,ci)=>`<div class="card" data-ci="${ci}"><canvas></canvas>
+      ${photoUI(c) ? `<div class="adj"><div class="adjh"><b>사진 조절</b> <small>PC는 사진을 끌어서 옮겨도 돼요</small><button class="btn sm ghost" type="button" data-act="reset">원래대로</button></div>
+        <label>크기<input type="range" min="100" max="300" value="${Math.round(((state.adj[ci]||{}).z||1)*100)}" data-adj="z"></label>
+        <label>좌우<input type="range" min="-100" max="100" value="${Math.round(((state.adj[ci]||{}).x||0)*100)}" data-adj="x"></label>
+        <label>상하<input type="range" min="-100" max="100" value="${Math.round(((state.adj[ci]||{}).y||0)*100)}" data-adj="y"></label></div>` : ''}
+      <div class="ed">${editorHTML(d,c)}</div>
       ${photoUI(c) ? `<div class="ed"><label class="lb">사진 검색어 <small>(영어가 더 정확해요 · 바꾸고 🔄 누르기)</small></label><input type="text" data-pq="${ci}" value="${esc(photoQueries()[ci]||'')}"></div>` : ''}
       <div class="ctl">
         ${photoUI(c) ? `<button class="btn sm accent" type="button" data-act="pick">🖼️ 사진 고르기</button><button class="btn sm ghost" type="button" data-act="fromtext">📝 글 내용으로 찾기</button><button class="btn sm ghost" type="button" data-act="shuffle">🔄 랜덤</button><label class="btn sm ghost" style="margin:0">📷 내 사진 올리기<input type="file" accept="image/*" hidden data-act="up"></label>` : ''}
         <button class="btn sm" type="button" data-act="png" style="margin-left:auto">⬇️ PNG 저장</button>
       </div>
-      ${photoUI(c) ? `<div class="adj"><div class="adjh"><b>사진 조절</b> <small>PC는 사진을 끌어서 옮겨도 돼요</small><button class="btn sm ghost" type="button" data-act="reset">원래대로</button></div>
-        <label>크기<input type="range" min="100" max="300" value="${Math.round(((state.adj[ci]||{}).z||1)*100)}" data-adj="z"></label>
-        <label>좌우<input type="range" min="-100" max="100" value="${Math.round(((state.adj[ci]||{}).x||0)*100)}" data-adj="x"></label>
-        <label>상하<input type="range" min="-100" max="100" value="${Math.round(((state.adj[ci]||{}).y||0)*100)}" data-adj="y"></label></div>` : ''}
       <div class="picker" hidden></div>
       <div class="credit"></div></div>`).join('');
     $('caption').value = d.caption + (d.hashtags.length ? '\n\n' + d.hashtags.map(h=>'#'+h).join(' ') : '') + creditLine();
