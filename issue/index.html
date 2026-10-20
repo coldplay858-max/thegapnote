@@ -173,10 +173,29 @@ input[type=range]{width:100%}
         <input type="password" id="unsplashKey" autocomplete="off">
         <div class="hint"><a href="https://unsplash.com/oauth/applications" target="_blank" rel="noopener">unsplash.com/oauth/applications</a> → New Application → Access Key 복사</div>
       </div>
-      <label for="handle">내 계정 이름 <small>(카드 아래에 작게 표시)</small></label>
-      <input type="text" id="handle" placeholder="@my_issue">
       <div class="hint">키는 이 기기 브라우저에만 저장돼요. 폰과 PC는 따로 넣어야 해요.</div>
     </details>
+  </div>
+
+  <!-- 계정 -->
+  <div class="panel" id="acctPanel">
+    <h2>📱 지금 만드는 계정</h2>
+    <div class="tools" style="margin-top:0;align-items:center">
+      <select id="acctSel" style="flex:1;width:auto"></select>
+      <button class="btn sm ghost" type="button" id="acctAdd">＋ 계정 추가</button>
+      <button class="btn sm ghost" type="button" id="acctDel" aria-label="계정 삭제">🗑</button>
+    </div>
+    <div class="row">
+      <div><label for="handle">계정 아이디 <small>(카드 아래)</small></label><input type="text" id="handle" placeholder="@kan.ga.ii"></div>
+      <div><label for="brand">표지 이름 <small>(매거진 제호)</small></label><input type="text" id="brand" placeholder="勘がいい人"></div>
+    </div>
+    <label for="mainLang">이 계정에 올릴 언어</label>
+    <select id="mainLang">
+      <option value="ko">한국어 계정</option>
+      <option value="ja">일본어 계정 (일본어 카드로 완성)</option>
+      <option value="en">영어 계정 (영어 카드로 완성)</option>
+    </select>
+    <div class="hint">계정마다 아이디·표지 이름·언어·디자인·색이 따로 저장돼요. 위에서 계정만 바꾸면 돼요.</div>
   </div>
 
   <!-- 1. 이슈 고르기 -->
@@ -336,7 +355,7 @@ function store(k,v){ try{ localStorage.setItem('icm_'+k, v); }catch(e){} }
 function load(k){ try{ return localStorage.getItem('icm_'+k) || ''; }catch(e){ return ''; } }
 function loadJSON(k,d){ try{ return JSON.parse(load(k)) || d; }catch(e){ return d; } }
 
-['outroType','geminiKey','gemModel','photoSrc','pixabayKey','pexelsKey','unsplashKey','handle','tone','count','period'].forEach(id=>{
+['outroType','geminiKey','gemModel','photoSrc','pixabayKey','pexelsKey','unsplashKey','tone','count','period'].forEach(id=>{
   const v = load(id); if(v) $(id).value = v;
   $(id).addEventListener('change', ()=>{ store(id, $(id).value); refreshSettings(); });
 });
@@ -384,16 +403,57 @@ function applyTheme(){
   $('swatches').innerHTML = COLORS.map(c=>`<button type="button" class="sw${c===state.accent?' on':''}" style="background:${c}" data-c="${c}" aria-label="색 ${c}"></button>`).join('');
 }
 applyTheme();
+/* ===== 계정(프로필) ===== */
+let profiles = loadJSON('profiles', null), curId = load('profileId');
+if(!Array.isArray(profiles) || !profiles.length){
+  const h = load('handle');
+  profiles = [{ id:'p1', label: h || '기본 계정', handle: h, brand:'', main:'ko', theme:state.theme, accent:state.accent }];
+}
+if(!profiles.find(x=>x.id===curId)) curId = profiles[0].id;
+const curP = () => profiles.find(x=>x.id===curId);
+function saveProfiles(){ store('profiles', JSON.stringify(profiles)); store('profileId', curId); }
+function drawAcctSel(){
+  $('acctSel').innerHTML = profiles.map(x=>`<option value="${x.id}"${x.id===curId?' selected':''}>${esc(x.label)}${x.main==='ja'?' 🇯🇵':x.main==='en'?' 🇺🇸':' 🇰🇷'}</option>`).join('');
+}
+function applyProfile(){
+  const P = curP();
+  $('handle').value = P.handle || ''; $('brand').value = P.brand || ''; $('mainLang').value = P.main || 'ko';
+  if(P.theme){ state.theme = P.theme; store('theme', P.theme); }
+  if(P.accent){ state.accent = P.accent; store('accent', P.accent); }
+  if(P.main==='ja'){ $('langJa').checked = true; } if(P.main==='en'){ $('langEn').checked = true; }
+  applyTheme(); drawAcctSel();
+  if(state.data && state.data.ko){
+    if(P.main!=='ko' && state.data[P.main]) state.lang = P.main;
+    renderAll(true);
+  }
+}
+function updProfile(k, v){ const P = curP(); P[k] = v; if(k==='handle' && (!P.label || P.label==='기본 계정' || P.label===P._autoLabel)){ P.label = v || '기본 계정'; P._autoLabel = P.label; } saveProfiles(); drawAcctSel(); }
+$('handle').addEventListener('input', ()=>{ updProfile('handle', $('handle').value.trim()); renderAll(); });
+$('brand').addEventListener('input', ()=>{ updProfile('brand', $('brand').value.trim()); renderAll(); });
+$('mainLang').addEventListener('change', ()=>{ updProfile('main', $('mainLang').value); if($('mainLang').value==='ja') $('langJa').checked = true; if($('mainLang').value==='en') $('langEn').checked = true; });
+$('acctSel').addEventListener('change', ()=>{ curId = $('acctSel').value; saveProfiles(); applyProfile(); });
+$('acctAdd').onclick = ()=>{
+  const label = (prompt('새 계정 이름을 적어 주세요 (예: 일본 계정, kan.ga.ii)') || '').trim(); if(!label) return;
+  const id = 'p' + Date.now();
+  profiles.push({ id, label, handle: label.startsWith('@') ? label : '', brand:'', main: /일본|jp|ja/i.test(label) ? 'ja' : 'ko', theme:state.theme, accent:state.accent });
+  curId = id; saveProfiles(); applyProfile();
+};
+$('acctDel').onclick = ()=>{
+  if(profiles.length<2){ alert('계정이 하나뿐이라 지울 수 없어요.'); return; }
+  if(!confirm(`"${curP().label}" 계정을 목록에서 지울까요? (인스타 계정은 그대로예요)`)) return;
+  profiles = profiles.filter(x=>x.id!==curId); curId = profiles[0].id; saveProfiles(); applyProfile();
+};
+saveProfiles(); applyProfile();
 $('themes').addEventListener('click', async e=>{
   const b = e.target.closest('.theme'); if(!b) return;
-  state.theme = b.dataset.theme; store('theme', state.theme); applyTheme();
+  state.theme = b.dataset.theme; store('theme', state.theme); applyTheme(); updProfile('theme', state.theme);
   photoHint(); if(wantPhotos() && hasCards()) await fillPhotos(false);
   renderAll(true); return;
   renderAll();
 });
 $('swatches').addEventListener('click', e=>{
   const b = e.target.closest('.sw'); if(!b) return;
-  state.accent = b.dataset.c; store('accent', state.accent); applyTheme(); renderAll();
+  state.accent = b.dataset.c; store('accent', state.accent); applyTheme(); updProfile('accent', state.accent); renderAll();
 });
 $('dim').value = load('dim2') || 35;
 const showDim = ()=>{ $('dimVal').textContent = $('dim').value+'%'; };
@@ -625,7 +685,7 @@ ${shapeRule(n, outro)}`;
     state.sources = uniqSources([...(p.sources||[]), ...r.sources]);
     state.photos = []; state.adj = []; state.pq = [];
     if(p.title) addHistory(p.title); else addHistory(d.cover.title.replace(/==/g,''));
-    const want = [$('langJa').checked&&'ja', $('langEn').checked&&'en'].filter(Boolean);
+    const want = [($('langJa').checked||$('mainLang').value==='ja')&&'ja', ($('langEn').checked||$('mainLang').value==='en')&&'en'].filter(Boolean);
     state.photoNote = '';
     if(wantPhotos()){ setStatus('makeStatus','<span class="spin"></span>어울리는 무료 사진 찾는 중…'); await fillPhotos(false); }
     renderAll(true);
@@ -633,6 +693,9 @@ ${shapeRule(n, outro)}`;
       setStatus('makeStatus','<span class="spin"></span>한국어 완성! '+want.map(l=>LANG_NAME[l]).join('·')+' 버전 만드는 중…');
       await translateTo(want);
     }
+    const ML = $('mainLang').value;
+    if(ML!=='ko' && state.data[ML]){ state.lang = ML; $('saveAllLangs').checked = false; renderAll(true); }
+    else $('saveAllLangs').checked = true;
     setStatus('makeStatus','✅ 완성! 오른쪽(폰은 아래) 카드에서 글을 바로 고칠 수 있어요.' + (state.photoNote ? '\n'+state.photoNote : '') + (r.noSearch ? '\n⚠️ 구글 검색이 막혀서 검색 보강 없이 썼어요. 사실관계를 꼭 확인하세요.' : ''),'ok');
     if(matchMedia('(max-width:959px)').matches) $('cards').scrollIntoView({behavior:'smooth'});
   }catch(e){ setStatus('makeStatus', e.message, 'err'); }
@@ -825,7 +888,8 @@ function drawMag(ctx, d, c, ci, total, lang, f){
   const A = state.accent, handle = $('handle').value.trim();
   const photo = state.photos[ci], adj = state.adj[ci];
   const BG = '#f5f1ea', INK = '#141210';
-  const brand = (handle ? handle.replace(/^@/,'') : (d.cover.kicker||'ISSUE')).toUpperCase();
+  const bset = $('brand').value.trim();
+  const brand = bset || (handle ? handle.replace(/^@/,'') : (d.cover.kicker||'ISSUE')).toUpperCase();
   const now = new Date(); const vol = `VOL.${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
   const maxW = W - PAD*2;
   ctx.textBaseline = 'alphabetic';
