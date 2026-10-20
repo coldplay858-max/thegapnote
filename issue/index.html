@@ -260,6 +260,7 @@ input[type=range]{width:100%}
       <div>
         <label for="tone">말투</label>
         <select id="tone">
+          <option value="story">센스 있는 이야기꾼 (추천)</option>
           <option value="ssul">친구한테 썰 푸는 반말</option>
           <option value="news">깔끔한 뉴스 존댓말</option>
           <option value="punch">짧고 굵게 (임팩트)</option>
@@ -335,6 +336,22 @@ input[type=range]{width:100%}
       <label><input type="checkbox" id="reelZoom" checked> 천천히 확대 효과</label>
       <label><input type="checkbox" id="reelBar" checked> 진행 막대</label>
     </div>
+    <div class="adj" style="margin-top:12px">
+      <div class="adjh"><b>🎙️ 나레이션 + 자막</b> <small>Gemini 무료 목소리</small></div>
+      <div class="checks" style="margin:4px 0 6px"><label><input type="checkbox" id="useNarr" checked> 목소리 나레이션</label><label><input type="checkbox" id="useSubs" checked> 자막</label></div>
+      <label for="narrVoice" style="display:block;margin:4px 0">목소리</label>
+      <select id="narrVoice">
+        <option value="Aoede">여성 · 밝고 편안하게</option>
+        <option value="Kore">여성 · 또렷하고 차분하게</option>
+        <option value="Leda">여성 · 어리고 경쾌하게</option>
+        <option value="Charon">남성 · 차분한 설명</option>
+        <option value="Puck">남성 · 밝고 경쾌하게</option>
+        <option value="Fenrir">남성 · 들뜬 리액션</option>
+      </select>
+      <div class="tools"><button class="btn sm ghost" id="btnNarrScript" type="button">📝 나레이션 대본 만들기</button><button class="btn sm ghost" id="btnNarrPlay" type="button">🔊 미리 듣기</button></div>
+      <textarea id="narrText" rows="8" placeholder="대본은 자동으로 만들어져요. 한 줄 = 자막 한 줄 · 앞의 숫자는 카드 번호 (예: 2| 그런데 옆 사람이 말을 걸어왔대요.)" style="margin-top:6px;font-size:13px"></textarea>
+      <div class="hint">대본을 직접 고쳐도 돼요. 고친 뒤 미리 듣기나 릴스 만들기를 누르면 새 목소리로 만들어요.</div>
+    </div>
     <div class="tools"><button class="btn accent" id="btnReel" type="button">🎬 릴스 영상 만들기</button></div>
     <div class="status" id="reelStatus"></div>
     <div id="reelOut" style="display:none;margin-top:10px">
@@ -376,7 +393,7 @@ function store(k,v){ try{ localStorage.setItem('icm_'+k, v); }catch(e){} }
 function load(k){ try{ return localStorage.getItem('icm_'+k) || ''; }catch(e){ return ''; } }
 function loadJSON(k,d){ try{ return JSON.parse(load(k)) || d; }catch(e){ return d; } }
 
-['outroType','geminiKey','gemModel','photoSrc','pixabayKey','pexelsKey','unsplashKey','tone','count','period'].forEach(id=>{
+['narrVoice','outroType','geminiKey','gemModel','photoSrc','pixabayKey','pexelsKey','unsplashKey','tone','count','period'].forEach(id=>{
   const v = load(id); if(v) $(id).value = v;
   $(id).addEventListener('change', ()=>{ store(id, $(id).value); refreshSettings(); });
 });
@@ -685,6 +702,7 @@ const SPICE = {
   hot: '매운맛: 최대한 궁금하고 자극적으로. 대비·숫자·반응을 과감하게. 단 거짓은 절대 금지.'
 };
 const TONES = {
+  story: '"센스 있는 이야기꾼" 말투. 편한 해요체(~했어요, ~했대요). 요즘 유행어·ㄹㅇ·킹받 같은 말은 쓰지 말고, 옛날 말투(~하옵니다)도 금지. 담담하게 이야기하다가 한 번씩 툭 던지는 위트("…네?", "이게 맞나요?")를 넣는다. 문장은 짧게. 대사(" ")를 1~2개 넣어 장면이 그려지게. 시작은 "오늘 들고 온 이야기, 좀 황당해요."처럼 가볍게 문을 열고, 끝은 "여러분이라면 몇 번이에요? 👂"처럼 묻는다.',
   ssul: '친구한테 썰 푸는 편한 반말. "있잖아", "근데 여기서 반전", "ㄹㅇ" 같은 말맛. 상황이 눈앞에 그려지게.',
   news: '깔끔한 뉴스 존댓말(~습니다/~했어요 섞지 말고 ~했습니다). 짧은 문장, 사실 위주.',
   punch: '아주 짧고 굵게. 한 문장 15자 안팎. 감탄과 반전 위주. 반말.'
@@ -1565,7 +1583,8 @@ function reelFrame(ctx, scenes, t, lang){
   if(k < scenes.length-1 && u > sc.dur - FADE){ drawScene(scenes[k+1], 0, (u-(sc.dur-FADE))/FADE); }
   // 위쪽 제목 (표지 이후)
   if($('reelHook').checked && sc.kind!=='cover'){
-    const items = [{text:d.cover.title, size:62, min:40, weight:900, family:f.sans, color:'#fff', lhr:1.2, maxLines:2, gap:0, shadow:true}];
+    const lightT = ['white','paper','mag'].includes(state.theme);
+    const items = [{text:d.cover.title, size:62, min:40, weight:900, family:f.sans, color:lightT?'#141414':'#fff', lhr:1.2, maxLines:2, gap:0, shadow:!lightT}];
     const top = 120, maxH = (RH-H)/2 + 40 - top - 30;
     const h = fitBlock(ctx, items, RW-PAD*2, maxH, lang);
     drawBlock(ctx, items, PAD, top + (maxH-h)/2, RW-PAD*2, 'center');
@@ -1582,6 +1601,178 @@ function reelFrame(ctx, scenes, t, lang){
   }
   return total;
 }
+/* ===== 나레이션 · 자막 ===== */
+['useNarr','useSubs'].forEach(id=>{ const v=load(id); if(v) $(id).checked=v==='1'; $(id).addEventListener('change',()=>store(id,$(id).checked?'1':'0')); });
+let narrCache = { key:'', buf:null };
+function parseNarr(){
+  const n = cardList(state.data[state.lang]).length;
+  return $('narrText').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const m = l.match(/^(\d+)\s*[|｜:.)]\s*(.+)$/);
+    const sc = m ? Math.min(n, Math.max(1, +m[1])) : 1;
+    return { scene: sc-1, text: (m ? m[2] : l).trim() };
+  });
+}
+async function makeNarrScript(){
+  const lang = state.lang, d = state.data[lang];
+  const list = cardList(d);
+  const cards = list.map((c,i)=> c.kind==='cover' ? `${i+1}. [표지] ${d.cover.title.replace(/==/g,'')} / ${d.cover.sub}`
+    : c.kind==='slide' ? `${i+1}. ${d.slides[c.i].heading}: ${d.slides[c.i].body}` : `${i+1}. [마무리] ${d.outro.title} / ${d.outro.body}`).join('\n');
+  const single = list.length===1;
+  const LN = {ko:'한국어', ja:'일본어', en:'영어'}[lang];
+  const prompt = `릴스 영상에 들어갈 ${LN} 나레이션 대본을 써라. 이 대본은 목소리로 읽히고, 한 줄씩 자막으로도 나온다.
+[말투] ${lang==='ko' ? TONES.story : '편안한 이야기꾼 말투. 담담하다가 한 번씩 위트 있게. 짧은 문장.'}
+[카드]
+${cards}
+${single ? '[캡션(이야기 전체)]\n'+d.caption.slice(0,1200) : ''}
+규칙:
+- ${single ? '카드가 1장뿐이니 모든 줄의 scene은 1. 캡션의 이야기를 처음부터 끝까지 들려준다.' : '각 줄의 scene은 그 줄이 나올 때 보여 줄 카드 번호. 카드 순서대로, 카드마다 1~3줄.'}
+- 전체 8~16줄. 한 줄은 한 문장, ${lang==='ko'?'30자':lang==='ja'?'28字':'12 words'} 이내 (자막 한 줄에 들어가게).
+- 첫 줄은 궁금하게 시작, 마지막 줄은 대중에게 묻는 질문과 선택지 (예: 여러분이라면, 거절한다 vs 바꿔 준다?).
+- 이모지·해시태그·괄호 설명·"너라면" 금지. 숫자는 읽기 쉽게.
+JSON 배열만 출력: [{"scene":카드번호, "text":"..."}]`;
+  const r = await gemini(prompt, {json:true, temp:0.8});
+  let arr = parseJSON(r.text); if(!Array.isArray(arr)) arr = arr.lines || [];
+  arr = arr.filter(x=>x && x.text);
+  if(!arr.length) throw new Error('대본을 못 만들었어요. 한 번 더 눌러 주세요.');
+  $('narrText').value = arr.map(x=>`${Math.max(1,+x.scene||1)}| ${String(x.text).trim()}`).join('\n');
+  narrCache = { key:'', buf:null };
+}
+$('btnNarrScript').onclick = async ()=>{
+  if(!hasCards()) return;
+  const b = $('btnNarrScript'), t = b.textContent; b.disabled = true; b.innerHTML = '<span class="spin"></span>대본 쓰는 중…';
+  try{ await makeNarrScript(); setStatus('reelStatus','📝 대본을 만들었어요. 고쳐도 되고, 🔊 미리 듣기로 들어 보세요.','ok'); }
+  catch(e){ setStatus('reelStatus', e.message, 'err'); }
+  b.disabled = false; b.textContent = t;
+};
+function pcmToWav(b64, rate){
+  const raw = atob(b64), n = raw.length, buf = new ArrayBuffer(44+n), v = new DataView(buf);
+  const w = (o,str)=>{ for(let i=0;i<str.length;i++) v.setUint8(o+i, str.charCodeAt(i)); };
+  w(0,'RIFF'); v.setUint32(4,36+n,true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40,n,true);
+  for(let i=0;i<n;i++) v.setUint8(44+i, raw.charCodeAt(i));
+  return buf;
+}
+const b64buf = b64 => { const r = atob(b64), u = new Uint8Array(r.length); for(let i=0;i<r.length;i++) u[i]=r.charCodeAt(i); return u.buffer; };
+let AC = null; const actx = () => (AC = AC || new (window.AudioContext||window.webkitAudioContext)());
+async function ttsAudio(lines){
+  const key = $('geminiKey').value.trim(); if(!key) throw new Error('Gemini 키를 넣어 주세요.');
+  const voice = $('narrVoice').value;
+  const ck = voice + '|' + lines.join('\n');
+  if(narrCache.key === ck && narrCache.buf) return narrCache.buf;
+  const style = state.lang==='ja' ? 'friendly Japanese storyteller, relaxed and slightly playful, natural pace'
+    : state.lang==='en' ? 'friendly storyteller, relaxed and slightly playful, natural pace'
+    : 'friendly Korean storyteller, relaxed and slightly playful, natural pace, clear pronunciation';
+  let last = '';
+  // 1) 최신 TTS (Interactions API)
+  for(const model of ['gemini-3.8-flash-tts','gemini-3.8-flash-lite-tts']){
+    try{
+      const r = await fetchTimeout('https://generativelanguage.googleapis.com/v1beta/interactions?key='+encodeURIComponent(key), {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ model, input:[{type:'user_input', content:[{type:'text', text: lines.join(' <short pause> '), annotations:[{type:'speech_metadata', style}]}]}],
+          response_format:{type:'audio'}, generation_config:{ speech_config:[{voice}] } })
+      }, 120000);
+      const j = await r.json().catch(()=>({}));
+      if(r.ok){
+        let data = j.output_audio && j.output_audio.data, mime = j.output_audio && (j.output_audio.mime_type||j.output_audio.mimeType);
+        (j.steps||[]).forEach(st=>{ if(st.type==='model_output') (st.content||[]).forEach(c=>{ if(c.type==='audio' && c.data){ data = c.data; mime = c.mime_type||c.mimeType||mime; } }); });
+        if(data){
+          const ab = /l16|pcm/i.test(mime||'') ? pcmToWav(data, +(String(mime).match(/rate=(\d+)/)||[0,24000])[1]) : b64buf(data);
+          const buf = await actx().decodeAudioData(ab);
+          narrCache = { key:ck, buf }; return buf;
+        }
+        last = '목소리 데이터가 비어 있어요';
+      } else {
+        last = (j.error&&j.error.message) || ('HTTP '+r.status);
+        if(r.status===429) last = '목소리 무료 사용량이 잠깐 꽉 찼어요. 1~2분 뒤 다시 해 주세요.';
+      }
+    }catch(e){ last = e.message; }
+  }
+  // 2) 예전 방식 (generateContent)
+  for(const model of ['gemini-2.5-flash-preview-tts','gemini-2.5-flash-tts']){
+    try{
+      const r = await fetchTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ contents:[{parts:[{text:`Read this in a ${style} voice:\n` + lines.join('\n')}]}],
+          generationConfig:{ responseModalities:['AUDIO'], speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName:voice } } } } })
+      }, 120000);
+      const j = await r.json().catch(()=>({}));
+      if(r.ok){
+        const part = (((j.candidates||[])[0]||{}).content||{}).parts||[];
+        const inl = (part.find(x=>x.inlineData||x.inline_data)||{}); const id = inl.inlineData || inl.inline_data;
+        if(id && id.data){
+          const mime = id.mimeType || id.mime_type || '';
+          const ab = /wav/i.test(mime) ? b64buf(id.data) : pcmToWav(id.data, +(mime.match(/rate=(\d+)/)||[0,24000])[1]);
+          const buf = await actx().decodeAudioData(ab);
+          narrCache = { key:ck, buf }; return buf;
+        }
+      } else if(!last || r.status===429) last = (j.error&&j.error.message) || ('HTTP '+r.status);
+    }catch(e){ last = last || e.message; }
+  }
+  throw new Error('목소리를 못 만들었어요: '+esc(String(last).slice(0,160)));
+}
+let narrSrc = null;
+$('btnNarrPlay').onclick = async ()=>{
+  if(!hasCards()) return;
+  const b = $('btnNarrPlay');
+  if(narrSrc){ try{ narrSrc.stop(); }catch(e){} narrSrc = null; b.textContent = '🔊 미리 듣기'; return; }
+  b.disabled = true; b.innerHTML = '<span class="spin"></span>목소리 만드는 중…';
+  try{
+    if(!$('narrText').value.trim()) await makeNarrScript();
+    const buf = await ttsAudio(parseNarr().map(x=>x.text));
+    const ac = actx(); await ac.resume();
+    narrSrc = ac.createBufferSource(); narrSrc.buffer = buf; narrSrc.connect(ac.destination);
+    narrSrc.onended = ()=>{ narrSrc = null; b.textContent = '🔊 미리 듣기'; };
+    narrSrc.start(); b.textContent = '⏹ 그만 듣기';
+    setStatus('reelStatus', `🔊 ${buf.duration.toFixed(1)}초 나레이션이에요.`, 'ok');
+  }catch(e){ setStatus('reelStatus', e.message, 'err'); b.textContent = '🔊 미리 듣기'; }
+  b.disabled = false;
+};
+function subTiming(segs, scenes, total, lead){
+  // 글자 수 비율로 각 줄 시간 배분
+  const wsum = segs.reduce((a,x)=>a+x.text.length+6,0);
+  let t = lead; const out = [];
+  segs.forEach(x=>{ const d = (total) * (x.text.length+6)/wsum; out.push({...x, t0:t, t1:t+d}); t += d; });
+  return out;
+}
+function drawSub(ctx, text, lang){
+  if(!text) return;
+  const f = fonts(lang);
+  const items = [{text, size:56, min:38, weight:800, family:f.sans, color:'#fff', lhr:1.3, maxLines:2, gap:0}];
+  const maxW = RW-PAD*2-40;
+  const h = fitBlock(ctx, items, maxW, 170, lang);
+  ctx.font = `${items[0].weight} ${items[0].px}px ${items[0].family}`;
+  const lw = Math.max(...items[0].lines.map(l=>lineW(ctx,l)));
+  const cy = RH*0.80, bx = (RW-lw)/2-28, by = cy-h/2-18;
+  ctx.fillStyle = 'rgba(0,0,0,.72)'; roundRect(ctx, bx, by, lw+56, h+36, 18); ctx.fill();
+  drawBlock(ctx, items, (RW-maxW)/2, cy-h/2, maxW, 'center');
+}
+async function recordNarrated(scenes, lang, segs, buf, onProg){
+  const type = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'].find(t=>window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+  if(!type) throw new Error('이 브라우저는 영상 녹화를 지원하지 않아요. 크롬 최신 버전으로 열어 주세요.');
+  const cv = document.createElement('canvas'); cv.width = RW; cv.height = RH; const ctx = cv.getContext('2d');
+  const vs = cv.captureStream(FPS);
+  const tracks = [...vs.getVideoTracks()];
+  let src = null, ac = null;
+  if(buf){
+    ac = actx(); await ac.resume();
+    const dest = ac.createMediaStreamDestination();
+    src = ac.createBufferSource(); src.buffer = buf; src.connect(dest);
+    tracks.push(...dest.stream.getAudioTracks());
+  }
+  const total = scenes.reduce((a,x)=>a+x.dur,0);
+  const rec = new MediaRecorder(new MediaStream(tracks), { mimeType:type, videoBitsPerSecond:6_000_000, audioBitsPerSecond:128000 });
+  const chunks = []; rec.ondataavailable = e=>{ if(e.data.size) chunks.push(e.data); };
+  const done = new Promise(r=>rec.onstop = r);
+  const draw = t=>{ ctx.fillStyle='#000'; ctx.fillRect(0,0,RW,RH); reelFrame(ctx, scenes, t, lang); if($('useSubs').checked){ const s = segs.find(x=>t>=x.t0 && t<x.t1); if(s) drawSub(ctx, s.text, lang); } };
+  draw(0); rec.start(500);
+  const LEAD = 0.35;
+  if(src) src.start(ac.currentTime + LEAD);
+  const t0 = performance.now();
+  await new Promise(res=>{ const tick = ()=>{ const t = (performance.now()-t0)/1000; if(t >= total){ res(); return; } draw(t); onProg(t/total); requestAnimationFrame(tick); }; tick(); });
+  rec.stop(); await done; try{ src && src.stop(); }catch(e){}
+  return new Blob(chunks, {type:type.split(';')[0]});
+}
+
 let reelBlob = null;
 async function encodeWebCodecs(scenes, lang, total, onProg){
   if(!window.VideoEncoder) return null;
@@ -1636,6 +1827,27 @@ $('btnReel').onclick = async ()=>{
   try{
     setStatus('reelStatus','<span class="spin"></span>영상 준비 중…');
     const scenes = await reelScenes(lang);
+    if($('useNarr').checked || $('useSubs').checked){
+      if(!$('narrText').value.trim()){ setStatus('reelStatus','<span class="spin"></span>나레이션 대본 쓰는 중…'); await makeNarrScript(); }
+      const segs = parseNarr();
+      let buf = null;
+      if($('useNarr').checked){ setStatus('reelStatus','<span class="spin"></span>목소리 만드는 중… (10~30초)'); buf = await ttsAudio(segs.map(x=>x.text)); }
+      const LEAD = 0.35, TAIL = 0.9;
+      const speech = buf ? buf.duration : segs.reduce((a,x)=>a+Math.max(1.6, x.text.length*0.13),0);
+      const timed = subTiming(segs, scenes, speech, LEAD);
+      // 카드별 시간 = 그 카드 자막 줄들의 시간
+      scenes.forEach((S,i)=>{ const mine = timed.filter(x=>x.scene===i); S.dur = mine.length ? (Math.max(...mine.map(x=>x.t1)) - Math.min(...mine.map(x=>x.t0))) : 0; });
+      scenes[0].dur += LEAD; scenes[scenes.length-1].dur += TAIL;
+      const tot = scenes.reduce((a,S)=>a+S.dur,0);
+      setStatus('reelStatus', `<span class="spin"></span>릴스 녹화 중… 영상 길이(${Math.round(tot)}초)만큼 걸려요. 화면을 켜 두세요.`);
+      const blob = await recordNarrated(scenes, lang, timed, buf, p=>setStatus('reelStatus', `<span class="spin"></span>릴스 녹화 중… ${Math.round(p*100)}% (화면을 켜 두세요)`));
+      reelBlob = blob;
+      const v = $('reelVideo'); if(v.src) URL.revokeObjectURL(v.src); v.src = URL.createObjectURL(blob);
+      $('reelOut').style.display = 'block';
+      const isMp4 = blob.type.includes('mp4');
+      setStatus('reelStatus', `✅ 나레이션 릴스 완성! ${Math.round(tot)}초 · ${(blob.size/1048576).toFixed(1)}MB · ${isMp4?'MP4':'WebM'}` + (isMp4 ? '' : '\n⚠️ WebM 형식이라 인스타에 안 올라갈 수 있어요. PC 크롬 최신 버전에서 만들어 보세요.') + (buf ? '\n💡 인스타에서 배경음악을 넣을 땐 음악 볼륨을 낮게(10~20%) 해 주세요.' : ''), 'ok');
+      btn.disabled = false; return;
+    }
     const total = scenes.reduce((a,x)=>a+x.dur,0);
     const prog = p => setStatus('reelStatus', `<span class="spin"></span>릴스 만드는 중… ${Math.round(p*100)}% (${Math.round(total)}초 영상)`);
     let blob = await encodeWebCodecs(scenes, lang, total, prog);
