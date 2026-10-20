@@ -155,7 +155,7 @@ input[type=range]{width:100%}
     <details class="settings" id="settingsBox">
       <summary>⚙️ API 키 설정 <span class="keyok" id="keyState"></span></summary>
       <label for="geminiKey">Gemini API 키 <small>(무료 · 글쓰기+검색)</small></label>
-      <input type="text" class="secret" id="geminiKey" placeholder="AIza로 시작하는 키" name="k_geminiKey_x" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore>
+      <input type="text" class="secret" id="geminiKey" placeholder="AIza… 또는 AQ.… 로 시작하는 키" name="k_geminiKey_x" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore>
       <div class="hint"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> 에서 구글 계정으로 무료 발급. <b>결제 카드는 연결하지 마세요</b> → 한도를 넘어도 돈이 안 나가요.</div>
       <label for="gemModel">Gemini 모델</label>
       <select id="gemModel">
@@ -414,8 +414,8 @@ function refreshSettings(){
   $('pixabayBox').style.display = $('photoSrc').value==='pixabay' ? 'block':'none';
   $('pexelsBox').style.display = $('photoSrc').value==='pexels' ? 'block':'none';
   $('unsplashBox').style.display = $('photoSrc').value==='unsplash' ? 'block':'none';
-  const gk = $('geminiKey').value.trim(); const ok = /^AIza[0-9A-Za-z_\-]{30,}$/.test(gk);
-  $('keyState').textContent = ok ? '✅ 키 저장됨' : (gk ? '⚠️ 키 모양이 이상해요 (AIza로 시작해야 해요)' : '⚠️ Gemini 키 필요');
+  const gk = $('geminiKey').value.trim(); const ok = /^(AIza[0-9A-Za-z_\-]{30,}|AQ\.[0-9A-Za-z_.\-]{20,})$/.test(gk);
+  $('keyState').textContent = ok ? '✅ 키 저장됨' : (gk ? '⚠️ 키 모양이 이상해요 (AIza… 또는 AQ.…로 시작해야 해요)' : '⚠️ Gemini 키 필요');
   $('keyState').style.color = ok ? 'var(--ok)' : 'var(--err)';
 }
 refreshSettings();
