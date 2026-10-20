@@ -348,7 +348,7 @@ const SWIPE = { ko:'넘겨보기 →', ja:'スワイプ →', en:'SWIPE →' };
 const state = {
   cat:'전체 랜덤', issues:[], picked:null, shots:[],
   theme:'dark', accent:COLORS[0],
-  data:{}, lang:'ko', langs:['ko'], photos:[], adj:[], pq:[], sources:[], busy:false
+  data:{}, lang:'ko', langs:['ko'], photos:[], adj:[], pq:[], pqList:[], sources:[], busy:false
 };
 
 function store(k,v){ try{ localStorage.setItem('icm_'+k, v); }catch(e){} }
@@ -683,11 +683,15 @@ ${shapeRule(n, outro)}`;
     const d = normalize(parseJSON(r.text), n, outro);
     state.data = { ko:d }; state.langs = ['ko']; state.lang = 'ko';
     state.sources = uniqSources([...(p.sources||[]), ...r.sources]);
-    state.photos = []; state.adj = []; state.pq = [];
+    state.photos = []; state.adj = []; state.pq = []; state.pqList = [];
     if(p.title) addHistory(p.title); else addHistory(d.cover.title.replace(/==/g,''));
     const want = [($('langJa').checked||$('mainLang').value==='ja')&&'ja', ($('langEn').checked||$('mainLang').value==='en')&&'en'].filter(Boolean);
     state.photoNote = '';
-    if(wantPhotos()){ setStatus('makeStatus','<span class="spin"></span>어울리는 무료 사진 찾는 중…'); await fillPhotos(false); }
+    if(wantPhotos()){
+      setStatus('makeStatus','<span class="spin"></span>카드 글 내용에 맞는 사진 찾는 중…');
+      try{ await queriesFromText(cardList(d).map((c,i)=>i)); }catch(e){}
+      await fillPhotos(false);
+    }
     renderAll(true);
     if(want.length){
       setStatus('makeStatus','<span class="spin"></span>한국어 완성! '+want.map(l=>LANG_NAME[l]).join('·')+' 버전 만드는 중…');
@@ -783,7 +787,7 @@ async function searchPhotos(q){
     const tries = [[words.join(' '),'vertical'],[words.join(' '),'all'],[words.slice(0,2).join(' '),'all'],[words[0]||'city','all']];
     for(const [qq,ori] of tries){
       if(!qq) continue;
-      const r = await fetchTimeout('https://pixabay.com/api/?image_type=photo&safesearch=true&per_page=30&orientation='+ori+'&key='+encodeURIComponent(key)+'&q='+encodeURIComponent(qq.slice(0,90)), {}, 20000);
+      const r = await fetchTimeout('https://pixabay.com/api/?image_type=photo&safesearch=true&lang=en&per_page=30&orientation='+ori+'&key='+encodeURIComponent(key)+'&q='+encodeURIComponent(qq.slice(0,90)), {}, 20000);
       if(r.status===400||r.status===401||r.status===403){ const t = await r.text().catch(()=>''); throw new Error('Pixabay 키가 틀렸어요. pixabay.com/api/docs 에서 key를 다시 복사해 넣어 주세요. ('+esc(t.slice(0,60))+')'); }
       if(r.status===429) throw new Error('Pixabay 사용량이 잠깐 꽉 찼어요. 1분 뒤 다시 해 주세요.');
       const j = await r.json();
@@ -813,7 +817,38 @@ function photoQueries(){
   const q = [ko.cover_photo || (ko.slides[0]&&ko.slides[0].photo)];
   ko.slides.forEach(s=>q.push(s.photo || ko.cover_photo));
   if(ko.outro) q.push(ko.cover_photo || 'people thinking');
-  return q.map((x,i)=>state.pq[i] || x);
+  return q.map((x,i)=>state.pq[i] || (state.pqList[i]&&state.pqList[i][0]) || x);
+}
+/* 카드 글 내용 → 사진 검색어 (Gemini) */
+function cardText(ci){
+  const ko = state.data.ko, c = cardList(ko)[ci];
+  if(c.kind==='cover') return `표지 제목: ${ko.cover.title.replace(/==/g,'')}\n부제: ${ko.cover.sub}\n(전체 이야기: ${ko.slides.map(x=>x.heading).join(' / ')})`;
+  if(c.kind==='slide'){ const x = ko.slides[c.i]; return `소제목: ${x.heading}\n본문: ${x.body}`; }
+  return `질문: ${ko.outro.title}\n${ko.outro.body}`;
+}
+async function queriesFromText(idxs){
+  const story = state.data.ko.slides.map(x=>x.heading+': '+x.body).join(' / ').slice(0,600);
+  const prompt = `무료 사진 사이트(Pixabay)에서 카드뉴스 사진을 찾으려 한다. 각 카드의 글 내용을 읽고, 그 내용이 눈에 보이는 사진 검색어를 영어로 만들어라.
+[전체 이야기 요약] ${story}
+[카드들]
+${idxs.map(i=>`#${i}\n${cardText(i)}`).join('\n\n')}
+규칙:
+- 카드마다 검색어 3개: 1번은 가장 구체적(3~5단어, 사람·행동·사물·장소), 2번은 조금 넓게(2~3단어), 3번은 분위기만(1~2단어).
+- 글에 나오는 핵심 사물·장소·행동을 꼭 넣어라 (예: 상사 카톡 → "boss texting phone night", 비행기 창가 → "airplane window seat").
+- 고유명사·인물 이름·추상어(success, problem, story) 금지. 무료 사진에 실제로 있을 법한 평범한 장면으로.
+JSON 배열만 출력: [{"i":카드번호, "q":["...","...","..."]}]`;
+  const r = await gemini(prompt, {json:true, temp:0.5});
+  let arr = parseJSON(r.text); if(!Array.isArray(arr)) arr = arr.cards || [];
+  arr.forEach(x=>{ const i = +x.i; if(Array.isArray(x.q) && x.q.length && idxs.includes(i)) state.pqList[i] = x.q.map(String).filter(Boolean).slice(0,3); });
+}
+async function searchMulti(i, extra){
+  const qs = [...new Set([state.pq[i], ...(state.pqList[i]||[]), extra, photoQueries()[i]].filter(Boolean))];
+  const seen = new Set(), out = [];
+  for(const q of qs){
+    try{ (await searchPhotos(q)).forEach(x=>{ if(!seen.has(x.url)){ seen.add(x.url); out.push(x); } }); }catch(e){ if(/키|꽉/.test(e.message)) throw e; }
+    if(out.length >= 12) break;
+  }
+  return out;
 }
 async function fillPhotos(force){
   if($('photoSrc').value==='none'){ photoMsg('⚠️ 설정의 "무료 사진 가져올 곳"이 "사용 안 함"이라 사진을 안 넣었어요. Pixabay를 골라 주세요.', 'err'); return; }
@@ -827,7 +862,7 @@ async function fillPhotos(force){
     if(!force && state.photos[i]){ ok++; continue; }
     try{
       const q = qs[i] || 'city';
-      if(!cache[q]) cache[q] = await searchPhotos(q);
+      if(!cache[q]) cache[q] = await searchMulti(i);
       const list = cache[q].filter(x=>!used.has(x.url));
       if(!list.length){ fail++; lastErr = '"'+q+'" 사진 검색 결과가 없어요'; continue; }
       const pick = list[Math.floor(Math.random()*Math.min(list.length,6))];
@@ -855,7 +890,7 @@ async function shufflePhoto(i){
   const q = photoQueries()[i];
   setStatus('outStatus','<span class="spin"></span>다른 사진 찾는 중…');
   try{
-    const list = (await searchPhotos(q)).filter(x=>!state.photos.some(p=>p&&p.url===x.url));
+    const list = (await searchMulti(i)).filter(x=>!state.photos.some(p=>p&&p.url===x.url));
     if(!list.length) throw new Error('다른 사진이 없어요. 내 사진을 올려 보세요.');
     await setPhoto(i, list[Math.floor(Math.random()*list.length)]);
     setStatus('outStatus','📷 사진을 바꿨어요.','ok'); refreshCard(i);
@@ -871,11 +906,12 @@ async function openPicker(ci, card){
   const pk = card.querySelector('.picker');
   if(!pk.hidden && pk.dataset.loaded){ pk.hidden = true; return; }
   if($('photoSrc').value==='none'){ setStatus('outStatus','설정에서 무료 사진(Pixabay/Pexels/Unsplash)을 골라 주세요.','err'); return; }
-  const qi = card.querySelector('[data-pq]'); if(qi) state.pq[ci] = qi.value.trim();
+  const qi = card.querySelector('[data-pq]');
+  if(qi){ const v = qi.value.trim(); state.pq[ci] = (state.pqList[ci] && state.pqList[ci][0]===v) ? '' : v; }
   const q = photoQueries()[ci] || 'city';
   pk.hidden = false; pk.innerHTML = '<div class="pmsg"><span class="spin"></span>"'+esc(q)+'" 사진 찾는 중…</div>';
   try{
-    const list = (await searchPhotos(q)).slice(0, 12);
+    const list = (await searchMulti(ci)).slice(0, 15);
     if(!list.length){ pk.innerHTML = '<div class="pmsg">사진이 없어요. 위 "사진 검색어"를 바꾸고 다시 눌러 주세요.</div>'; return; }
     card._pick = list; pk.dataset.loaded = '1';
     pk.innerHTML = '<div class="pmsg">마음에 드는 사진을 누르세요 · 검색어를 바꾸면 다른 사진이 나와요</div>' + list.map((x,k)=>`<img src="${esc(x.thumb||x.url)}" data-k="${k}" alt="후보 ${k+1}" loading="lazy">`).join('');
@@ -1273,7 +1309,7 @@ async function doRender(rebuild){
     box.innerHTML = list.map((c,ci)=>`<div class="card" data-ci="${ci}"><canvas></canvas><div class="ed">${editorHTML(d,c)}</div>
       ${photoUI(c) ? `<div class="ed"><label class="lb">사진 검색어 <small>(영어가 더 정확해요 · 바꾸고 🔄 누르기)</small></label><input type="text" data-pq="${ci}" value="${esc(photoQueries()[ci]||'')}"></div>` : ''}
       <div class="ctl">
-        ${photoUI(c) ? `<button class="btn sm accent" type="button" data-act="pick">🖼️ 사진 고르기</button><button class="btn sm ghost" type="button" data-act="shuffle">🔄 랜덤</button><label class="btn sm ghost" style="margin:0">📷 내 사진 올리기<input type="file" accept="image/*" hidden data-act="up"></label>` : ''}
+        ${photoUI(c) ? `<button class="btn sm accent" type="button" data-act="pick">🖼️ 사진 고르기</button><button class="btn sm ghost" type="button" data-act="fromtext">📝 글 내용으로 찾기</button><button class="btn sm ghost" type="button" data-act="shuffle">🔄 랜덤</button><label class="btn sm ghost" style="margin:0">📷 내 사진 올리기<input type="file" accept="image/*" hidden data-act="up"></label>` : ''}
         <button class="btn sm" type="button" data-act="png" style="margin-left:auto">⬇️ PNG 저장</button>
       </div>
       ${photoUI(c) ? `<div class="adj"><div class="adjh"><b>사진 조절</b> <small>PC는 사진을 끌어서 옮겨도 돼요</small><button class="btn sm ghost" type="button" data-act="reset">원래대로</button></div>
@@ -1340,6 +1376,16 @@ $('cards').addEventListener('click', async e=>{
   if(b.dataset.act==='png'){ const blob = await cardBlob(ci); if(blob) downloadBlob(blob, fileName(ci)); }
   if(b.dataset.act==='retitle'){ retitle(b); return; }
   if(b.dataset.act==='pick'){ openPicker(ci, b.closest('.card')); return; }
+  if(b.dataset.act==='fromtext'){
+    const card = b.closest('.card'), old = b.textContent; b.disabled = true; b.innerHTML = '<span class="spin"></span>글 읽는 중…';
+    try{
+      await queriesFromText([ci]); state.pq[ci] = '';
+      const qi = card.querySelector('[data-pq]'); if(qi) qi.value = (state.pqList[ci]||[])[0] || qi.value;
+      const pk = card.querySelector('.picker'); pk.hidden = true; delete pk.dataset.loaded;
+      await openPicker(ci, card);
+    }catch(e){ setStatus('outStatus', e.message, 'err'); }
+    b.disabled = false; b.textContent = old; return;
+  }
   if(b.dataset.act==='reset'){ state.adj[ci] = null; const el=b.closest('.card'); el.querySelector('[data-adj=z]').value=100; el.querySelector('[data-adj=x]').value=0; el.querySelector('[data-adj=y]').value=0; redrawCard(ci); return; }
   if(b.dataset.act==='shuffle'){
     const qi = b.closest('.card').querySelector('[data-pq]'); if(qi) state.pq[ci] = qi.value.trim();
