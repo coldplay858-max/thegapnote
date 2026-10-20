@@ -66,11 +66,13 @@ details.settings summary .keyok{margin-left:auto;font-size:12px;font-weight:600}
 .thumbs div{position:relative}
 .thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
 .thumbs button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:var(--ink);color:#fff;font-size:11px;cursor:pointer}
-.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.themes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .theme{border:2px solid var(--line);border-radius:12px;padding:6px;background:#fff;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--ink)}
 .theme.on{border-color:var(--accent)}
 .theme i{display:block;aspect-ratio:4/5;border-radius:8px;margin-bottom:5px;position:relative;overflow:hidden}
 .t-dark i{background:#0f0f12}
+.t-white i{background:#fff;border:1px solid #e5e5e5}
+.t-white i::after{content:"";position:absolute;left:10%;right:10%;top:10%;height:42%;background:linear-gradient(#cfd8e3,#9fb0c4);border-radius:4px;box-shadow:0 30px 0 -8px #222}
 .t-dark i::after{content:"";position:absolute;left:12%;right:20%;bottom:22%;height:10%;background:#fff;border-radius:2px;box-shadow:0 -14px 0 -4px var(--accent)}
 .t-paper i{background:#f4efe4;border:1px solid #ddd}
 .t-paper i::after{content:"";position:absolute;left:10%;right:10%;top:12%;height:3px;background:#1b1b1b;box-shadow:0 26px 0 6px #1b1b1b55}
@@ -242,6 +244,7 @@ input[type=range]{width:100%}
 
     <label>디자인</label>
     <div class="themes" id="themes">
+      <button type="button" class="theme t-white" data-theme="white"><i></i>클린 화이트</button>
       <button type="button" class="theme t-dark on" data-theme="dark"><i></i>뉴스 다크</button>
       <button type="button" class="theme t-paper" data-theme="paper"><i></i>신문 페이퍼</button>
       <button type="button" class="theme t-photo" data-theme="photo"><i></i>사진 배경</button>
@@ -250,7 +253,7 @@ input[type=range]{width:100%}
     <div class="hint" id="photoHint"></div>
     <div class="photoOnly">
       <label for="dim">사진 어둡게 <small id="dimVal"></small></label>
-      <input type="range" id="dim" min="0" max="90" value="55">
+      <input type="range" id="dim" min="0" max="90" value="35">
       <div class="hint">사진은 설정에서 고른 무료 사진(Pixabay/Pexels/Unsplash)이 자동으로 들어가요. 카드마다 내 사진으로 바꿀 수도 있어요.</div>
     </div>
     <label>포인트 색</label>
@@ -362,7 +365,7 @@ $('cats').addEventListener('click', e=>{
   [...$('cats').children].forEach(x=>x.classList.toggle('on', x===b));
 });
 /* 디자인 */
-state.theme = load('theme') || 'dark';
+state.theme = load('theme') || 'white';
 state.accent = load('accent') || COLORS[0];
 function applyTheme(){
   [...$('themes').children].forEach(x=>x.classList.toggle('on', x.dataset.theme===state.theme));
@@ -382,10 +385,10 @@ $('swatches').addEventListener('click', e=>{
   const b = e.target.closest('.sw'); if(!b) return;
   state.accent = b.dataset.c; store('accent', state.accent); applyTheme(); renderAll();
 });
-$('dim').value = load('dim') || 55;
+$('dim').value = load('dim2') || 35;
 const showDim = ()=>{ $('dimVal').textContent = $('dim').value+'%'; };
 showDim();
-$('dim').addEventListener('input', ()=>{ showDim(); store('dim',$('dim').value); renderAll(); });
+$('dim').addEventListener('input', ()=>{ showDim(); store('dim2',$('dim').value); renderAll(); });
 
 /* ============ Gemini ============ */
 function fetchTimeout(url, opt, ms){
@@ -911,8 +914,8 @@ function pill(ctx, text, x, y, bg, fg, font){
 function drawCover(ctx, img, dim, a){
   placeImg(ctx, img, 0, 0, W, H, a);
   const g = ctx.createLinearGradient(0, H*0.25, 0, H);
-  g.addColorStop(0, `rgba(0,0,0,${dim*0.25})`); g.addColorStop(0.55, `rgba(0,0,0,${Math.min(.95,dim*0.95+.2)})`); g.addColorStop(1, `rgba(0,0,0,${Math.min(.97,dim+.3)})`);
-  ctx.fillStyle = `rgba(0,0,0,${dim*0.35})`; ctx.fillRect(0,0,W,H);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.5, `rgba(0,0,0,${Math.min(.9,dim*0.8+.15)})`); g.addColorStop(1, `rgba(0,0,0,${Math.min(.95,dim*0.9+.3)})`);
+  ctx.fillStyle = `rgba(0,0,0,${dim*0.18})`; ctx.fillRect(0,0,W,H);
   ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
 }
 
@@ -929,7 +932,8 @@ function drawCard(cv, lang, ci){
   const ctx = cv.getContext('2d');
   const f = fonts(lang); const th = state.theme; const A = state.accent;
   const total = list.length; const handle = $('handle').value.trim();
-  const dark = th!=='paper';
+  const light = th==='paper' || th==='white';
+  const dark = !light;
   const ink = dark ? '#ffffff' : '#161616';
   const sub = dark ? 'rgba(255,255,255,.78)' : '#3d3a35';
   const faint = dark ? 'rgba(255,255,255,.5)' : '#8a857b';
@@ -942,8 +946,13 @@ function drawCard(cv, lang, ci){
   if(th==='paper'){
     ctx.fillStyle = '#f4efe4'; ctx.fillRect(0,0,W,H);
     ctx.fillStyle = 'rgba(0,0,0,.025)'; for(let y=0;y<H;y+=6) ctx.fillRect(0,y,W,1);
+  } else if(th==='white'){
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,W,H);
+    const g = ctx.createRadialGradient(W*0.9, H*0.05, 10, W*0.9, H*0.05, W*0.8);
+    g.addColorStop(0, hexA(A,.10)); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
   } else if(th==='photo' && photo){
     drawCover(ctx, photo.img, dim, state.adj[ci]);
+    if(c.kind==='outro'){ ctx.fillStyle='rgba(0,0,0,.45)'; ctx.fillRect(0,0,W,H); }
   } else if(th==='photo'){
     const g = ctx.createLinearGradient(0,0,W,H); g.addColorStop(0, '#2a2d36'); g.addColorStop(1,'#0b0b0e'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   } else {
@@ -953,8 +962,8 @@ function drawCard(cv, lang, ci){
   }
 
   // 카드 안 사진 (뉴스 다크·페이퍼)
-  const bgc = th==='paper' ? '#f4efe4' : '#0f0f12';
-  if(inl && c.kind==='cover' && th!=='paper'){
+  const bgc = th==='paper' ? '#f4efe4' : th==='white' ? '#ffffff' : '#0f0f12';
+  if(inl && c.kind==='cover' && !light){
     imgBox(ctx, inl.img, 0, 0, W, Math.round(H*0.64), 0, state.adj[ci]);
     const g = ctx.createLinearGradient(0, H*0.28, 0, H*0.64); g.addColorStop(0,'rgba(15,15,18,0)'); g.addColorStop(1, bgc);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, Math.round(H*0.64)+1);
@@ -986,15 +995,15 @@ function drawCard(cv, lang, ci){
       {text:d.cover.title, size: lang==='en'?104:112, min:58, weight:900, family:head, color:ink, lhr:1.22, maxLines:4, gap:34, shadow},
       {text:d.cover.sub, size:44, min:30, weight:500, family:f.sans, color:sub, lhr:1.45, maxLines:3, gap:0, shadow}
     ];
-    const top = th==='paper' ? (inl ? 750 : 200) : 260, bottom = H-170;
+    const top = light ? (inl ? (th==='white'?780:750) : 200) : 260, bottom = H-170;
     const h = fitBlock(ctx, items, maxW, bottom-top-90, lang);
-    let y = th==='paper' ? (inl ? top+90 : Math.max(top+90, top + 90 + (bottom-top-90-h)/2 - 40)) : bottom - h;
+    let y = light ? (inl ? top+90 : Math.max(top+90, top + 90 + (bottom-top-90-h)/2 - 40)) : bottom - h;
     if(th!=='paper'){ pill(ctx, d.cover.kicker, PAD, y-104, A, '#fff', `800 32px ${f.sans}`); }
     else { ctx.fillStyle = A; ctx.fillRect(PAD, y-70, 120, 10); }
     drawBlock(ctx, items, PAD, y, maxW, 'left');
     // 넘겨보기
     ctx.font = `700 30px ${f.sans}`; const sw = SWIPE[lang]||SWIPE.ko;
-    ctx.fillStyle = th==='paper' ? '#161616' : '#fff'; if(!REEL) ctx.fillText(sw, W-PAD-ctx.measureText(sw).width, H-70);
+    ctx.fillStyle = light ? '#161616' : '#fff'; if(!REEL) ctx.fillText(sw, W-PAD-ctx.measureText(sw).width, H-70);
     if(th==='paper'){ ctx.fillStyle='#161616'; ctx.fillRect(PAD, H-130, W-PAD*2, 2); }
   }
   else if(c.kind==='slide'){
@@ -1017,7 +1026,7 @@ function drawCard(cv, lang, ci){
       ctx.font = `900 64px ${f.sans}`; ctx.fillStyle = A; ctx.fillText(no, PAD, y-40);
       drawBlock(ctx, items, PAD, y, maxW, 'left');
     } else {
-      const top = th==='paper'? 190 : 200;
+      const top = light ? 190 : 200;
       ctx.font = `900 120px ${head}`; ctx.fillStyle = A; ctx.fillText(no, PAD-4, top+110);
       const y0 = top + 170;
       ctx.fillStyle = dark ? 'rgba(255,255,255,.15)' : '#16161633';
@@ -1211,7 +1220,7 @@ async function reelScenes(lang){
       let base = '#111';
       try{ const px = card.getContext('2d').getImageData(8, H-8, 1, 1).data; base = `rgb(${px[0]*.55|0},${px[1]*.55|0},${px[2]*.55|0})`; }catch(e){}
       b.fillStyle = base; b.fillRect(0,0,RW,RH);
-      b.filter = 'blur(46px) brightness(0.55)';
+      b.filter = (state.theme==='paper'||state.theme==='white') ? 'blur(46px) brightness(0.92)' : 'blur(46px) brightness(0.55)';
       const s = Math.max(RW/W, RH/H)*1.35; b.drawImage(card, (RW-W*s)/2, (RH-H*s)/2, W*s, H*s);
       b.filter = 'none';
       scenes.push({ card, bg, dur: list[i].kind==='cover' ? +$('reelCoverSec').value : +$('reelSec').value, kind:list[i].kind });
