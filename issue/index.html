@@ -1474,8 +1474,8 @@ async function doRender(rebuild){
           <option value="illust">잡지 일러스트</option>
         </select>
         <textarea data-rprompt rows="5" placeholder="🎨 프롬프트 만들기를 누르면 여기에 영어 프롬프트가 나와요" style="margin-top:6px;font-size:12.5px"></textarea>
-        <div class="tools" style="margin-top:6px"><button class="btn sm accent" type="button" data-act="rmake">🎨 프롬프트 만들기</button><button class="btn sm ghost" type="button" data-act="rcopy">📋 복사</button><a class="btn sm ghost" href="https://higgsfield.ai/" target="_blank" rel="noopener" style="text-decoration:none">힉스필드 열기 ↗</a></div>
-        <div class="hint">① 프롬프트 복사 → ② 힉스필드에 붙여넣고 4:5로 만들기 → ③ 그림 저장 → ④ 위 <b>📷 내 사진 올리기</b>로 넣기 (자동으로 "AI 재현 이미지" 표시가 붙어요)</div>
+        <div class="tools" style="margin-top:6px"><button class="btn sm accent" type="button" data-act="rmake">🎨 프롬프트 만들기</button><button class="btn sm" type="button" data-act="rgemini" style="background:#1a73e8">✨ Gemini로 만들기 (무료)</button><button class="btn sm ghost" type="button" data-act="rcopy">📋 복사</button><a class="btn sm ghost" href="https://higgsfield.ai/" target="_blank" rel="noopener" style="text-decoration:none">힉스필드 ↗</a></div>
+        <div class="hint"><b>Gemini(무료)</b>: ✨ 버튼 → Gemini가 열리면 입력창에 <b>길게 눌러 붙여넣기</b> → 보내기 → 나온 그림 저장 → 위 <b>📷 내 사진 올리기</b>. "AI 재현 이미지" 표시는 자동으로 붙어요.</div>
       </div>
       <label class="hint" style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" data-ailabel ${state.aiLabel[ci]?'checked':''}> 이 카드에 "AI 재현 이미지" 표시</label>` : ''}
       <div class="credit"></div></div>`).join('');
@@ -1543,6 +1543,15 @@ $('cards').addEventListener('click', async e=>{
   if(b.dataset.act==='retitle'){ retitle(b); return; }
   if(b.dataset.act==='pick'){ openPicker(ci, b.closest('.card')); return; }
   if(b.dataset.act==='recreate'){ const rb = b.closest('.card').querySelector('.rbox'); rb.hidden = !rb.hidden; if(!rb.hidden && !rb.querySelector('[data-rprompt]').value) rb.querySelector('[data-act=rmake]').click(); return; }
+  if(b.dataset.act==='rgemini'){
+    const ta = b.closest('.rbox').querySelector('[data-rprompt]');
+    if(!ta.value.trim()){ setStatus('outStatus','먼저 🎨 프롬프트 만들기를 눌러 주세요.','err'); return; }
+    const msg = 'Generate an image. Vertical 4:5 aspect ratio, no text, no watermark, no logos.\n\n' + ta.value.trim();
+    try{ await navigator.clipboard.writeText(msg); }catch(e){ ta.value = msg; ta.select(); document.execCommand('copy'); }
+    window.open('https://gemini.google.com/app', '_blank', 'noopener');
+    setStatus('outStatus','📋 복사했어요! Gemini 입력창을 길게 눌러 <b>붙여넣기</b> → 보내기. 그림이 나오면 저장해서 📷 내 사진 올리기로 넣으세요.','ok');
+    return;
+  }
   if(b.dataset.act==='rcopy'){ const ta = b.closest('.rbox').querySelector('[data-rprompt]'); try{ await navigator.clipboard.writeText(ta.value); }catch(e){ ta.select(); document.execCommand('copy'); } setStatus('outStatus','📋 프롬프트를 복사했어요. 힉스필드에 붙여넣으세요.','ok'); return; }
   if(b.dataset.act==='rmake'){
     const rb = b.closest('.rbox'), old = b.textContent; b.disabled = true; b.innerHTML = '<span class="spin"></span>쓰는 중…';
