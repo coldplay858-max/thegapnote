@@ -129,6 +129,8 @@ details.settings summary .keyok{margin-left:auto;font-size:12px;font-weight:600}
 .picker img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid transparent;background:#eee}
 .picker img:hover{border-color:var(--accent)}
 .picker .pmsg{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.rbox{margin-top:8px;border:1px solid #ddd6fe;background:#faf5ff;border-radius:10px;padding:8px 10px}
+.rbox[hidden]{display:none}
 .card .credit{font-size:11px;color:var(--muted);margin-top:4px}
 .outbar{position:sticky;top:52px;z-index:3;background:var(--bg);padding:8px 0;display:none;gap:8px;flex-wrap:wrap}
 .outbar.show{display:flex}
@@ -388,7 +390,7 @@ const swipeText = (lang, total) => total<=1 ? (MORE[lang]||MORE.ko) : (SWIPE[lan
 const state = {
   cat:'전체 랜덤', issues:[], picked:null, shots:[],
   theme:'dark', accent:COLORS[0],
-  data:{}, lang:'ko', langs:['ko'], photos:[], adj:[], pq:[], pqList:[], sources:[], busy:false
+  data:{}, lang:'ko', langs:['ko'], photos:[], adj:[], pq:[], pqList:[], aiLabel:[], recreated:[], sources:[], busy:false
 };
 
 function store(k,v){ try{ localStorage.setItem('icm_'+k, v); }catch(e){} }
@@ -787,7 +789,7 @@ ${shapeRule(n, outro, single)}`;
     const d = normalize(parseJSON(r.text), n, outro);
     state.data = { ko:d }; state.langs = ['ko']; state.lang = 'ko';
     state.sources = uniqSources([...(p.sources||[]), ...r.sources]);
-    state.photos = []; state.adj = []; state.pq = []; state.pqList = [];
+    state.photos = []; state.adj = []; state.pq = []; state.pqList = []; state.aiLabel = []; state.recreated = [];
     if(p.title) addHistory(p.title); else addHistory(d.cover.title.replace(/==/g,''));
     const want = [($('langJa').checked||$('mainLang').value==='ja')&&'ja', ($('langEn').checked||$('mainLang').value==='en')&&'en'].filter(Boolean);
     state.photoNote = '';
@@ -1008,6 +1010,8 @@ async function shufflePhoto(i){
 async function uploadPhoto(i, file){
   const img = await loadImg(URL.createObjectURL(file));
   state.photos[i] = { img, url:'mine', credit:'' }; state.adj[i] = null;
+  if(state.recreated[i]) state.aiLabel[i] = true;
+  const el = $('cards').children[i]; if(el){ const cb = el.querySelector('[data-ailabel]'); if(cb) cb.checked = !!state.aiLabel[i]; }
   refreshCard(i);
 }
 
@@ -1114,6 +1118,28 @@ function drawMag(ctx, d, c, ci, total, lang, f){
   if(handle) ctx.fillText(handle, PAD, H-66);
   const tag = (d.cover.kicker||'').toUpperCase(); ctx.fillText(tag, W-PAD-ctx.measureText(tag).width, H-66);
   spaced(ctx, 0);
+}
+
+async function recreatePrompt(ci, style){
+  const S = {
+    recreate: 'realistic staged re-enactment photo, like a scene recreated for a magazine feature, natural light, clearly composed (not a candid news photo)',
+    movie: 'cinematic movie still, dramatic lighting, shallow depth of field, color graded, subtle film grain',
+    object: 'NO people at all. A still-life or empty place that tells the situation through objects (seats, phones, receipts, rooms, signs), moody lighting, editorial photo',
+    illust: 'editorial magazine illustration, clean shapes, soft textures, limited warm palette, not photorealistic'
+  }[style];
+  const story = (state.data.ko.slides.length ? state.data.ko.slides.map(x=>x.heading+': '+x.body).join(' / ') : state.data.ko.caption).slice(0,700);
+  const prompt = `Write ONE English prompt for an AI image generator (Higgsfield) for this Instagram card.
+[Card text] ${cardText(ci)}
+[Whole story] ${story}
+[Style] ${S}
+Rules:
+- Show the key situation of this card clearly in one frame. Vertical 4:5 composition, space at the bottom for text.
+- Use generic, fictional people (describe age/clothes/expression). Never a real person, celebrity, politician, or a recognizable individual from the news. No names, no logos, no brand marks, no readable text.
+- Do NOT recreate or imitate any specific existing news photo; invent a fresh composition and camera angle.
+- 50~90 words, comma-separated descriptive phrases, include lighting and camera/lens words.
+Output only the prompt text, nothing else.`;
+  const r = await gemini(prompt, {temp:0.9});
+  return r.text.replace(/^["'`]+|["'`]+$/g,'').replace(/```/g,'').trim();
 }
 
 /* ============ 카드 그리기 ============ */
@@ -1250,6 +1276,18 @@ function cardList(d){
   return list;
 }
 function drawCard(cv, lang, ci){
+  drawCardInner(cv, lang, ci);
+  if(state.aiLabel[ci] && state.photos[ci]){
+    const ctx = cv.getContext('2d'); const f = fonts(lang);
+    try{ ctx.letterSpacing = '0px'; }catch(e){}
+    const t = {ko:'AI 재현 이미지', ja:'AI再現イメージ', en:'AI recreation'}[lang] || 'AI 재현 이미지';
+    ctx.font = `700 24px ${f.sans}`; const tw = ctx.measureText(t).width;
+    const x = W - PAD - tw - 28, y = 118;
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; roundRect(ctx, x, y, tw+28, 42, 21); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.fillText(t, x+14, y+22); ctx.textBaseline = 'alphabetic';
+  }
+}
+function drawCardInner(cv, lang, ci){
   const d = state.data[lang]; const list = cardList(d); const c = list[ci];
   cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d');
@@ -1423,10 +1461,23 @@ async function doRender(rebuild){
       <div class="ed">${editorHTML(d,c)}</div>
       ${photoUI(c) ? `<div class="ed"><label class="lb">사진 검색어 <small>(영어가 더 정확해요 · 바꾸고 🔄 누르기)</small></label><input type="text" data-pq="${ci}" value="${esc(photoQueries()[ci]||'')}"></div>` : ''}
       <div class="ctl">
-        ${photoUI(c) ? `<button class="btn sm accent" type="button" data-act="pick">🖼️ 사진 고르기</button><button class="btn sm ghost" type="button" data-act="fromtext">📝 글 내용으로 찾기</button><button class="btn sm ghost" type="button" data-act="shuffle">🔄 랜덤</button><label class="btn sm ghost" style="margin:0">📷 내 사진 올리기<input type="file" accept="image/*" hidden data-act="up"></label>` : ''}
+        ${photoUI(c) ? `<button class="btn sm accent" type="button" data-act="pick">🖼️ 사진 고르기</button><button class="btn sm ghost" type="button" data-act="fromtext">📝 글 내용으로 찾기</button><button class="btn sm ghost" type="button" data-act="recreate" style="border-color:#c4b5fd;color:#5b21b6">🎨 재현컷 프롬프트</button><button class="btn sm ghost" type="button" data-act="shuffle">🔄 랜덤</button><label class="btn sm ghost" style="margin:0">📷 내 사진 올리기<input type="file" accept="image/*" hidden data-act="up"></label>` : ''}
         <button class="btn sm" type="button" data-act="png" style="margin-left:auto">⬇️ PNG 저장</button>
       </div>
       <div class="picker" hidden></div>
+      ${photoUI(c) ? `<div class="rbox" hidden>
+        <div class="adjh"><b>🎨 재현컷 만들기</b><small>힉스필드·Gemini 앱 등에서 새 그림 만들기</small></div>
+        <select data-rstyle style="font-size:13px;padding:7px 8px">
+          <option value="recreate">재현 사진 (현실적이지만 연출된 장면)</option>
+          <option value="movie">영화 스틸컷 (극적인 조명·색감)</option>
+          <option value="object">사람 없이 상황만 (사물·장소)</option>
+          <option value="illust">잡지 일러스트</option>
+        </select>
+        <textarea data-rprompt rows="5" placeholder="🎨 프롬프트 만들기를 누르면 여기에 영어 프롬프트가 나와요" style="margin-top:6px;font-size:12.5px"></textarea>
+        <div class="tools" style="margin-top:6px"><button class="btn sm accent" type="button" data-act="rmake">🎨 프롬프트 만들기</button><button class="btn sm ghost" type="button" data-act="rcopy">📋 복사</button><a class="btn sm ghost" href="https://higgsfield.ai/" target="_blank" rel="noopener" style="text-decoration:none">힉스필드 열기 ↗</a></div>
+        <div class="hint">① 프롬프트 복사 → ② 힉스필드에 붙여넣고 4:5로 만들기 → ③ 그림 저장 → ④ 위 <b>📷 내 사진 올리기</b>로 넣기 (자동으로 "AI 재현 이미지" 표시가 붙어요)</div>
+      </div>
+      <label class="hint" style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" data-ailabel ${state.aiLabel[ci]?'checked':''}> 이 카드에 "AI 재현 이미지" 표시</label>` : ''}
       <div class="credit"></div></div>`).join('');
     $('caption').value = d.caption + (d.hashtags.length ? '\n\n' + d.hashtags.map(h=>'#'+h).join(' ') : '') + creditLine();
   }
@@ -1437,10 +1488,15 @@ async function doRender(rebuild){
   });
   $('makeSources').innerHTML = sourcesHTML(state.sources) + (state.sources.length?'<br>':'') + '⚠️ 올리기 전에 사실관계를 한 번 확인해 주세요.';
 }
+function fixCredit(){
+  $('caption').value = $('caption').value.replace(/(\n\n)?(\* [^\n]*(AI|画像|Images)[^\n]*)?(\n)?(Photo: [^\n]*)?\s*$/,'') + creditLine();
+}
 function creditLine(){
   if(!wantPhotos()) return '';
-  const cr = [...new Set(state.photos.filter(p=>p&&p.credit).map(p=>p.credit))];
-  return cr.length ? '\n\n' + cr.join(', ') : '';
+  const cr = [...new Set(state.photos.filter((p,i)=>p&&p.credit&&!state.aiLabel[i]).map(p=>p.credit))];
+  const ai = state.aiLabel.some((v,i)=>v && state.photos[i]) ? {ko:'* 이미지는 AI로 재현한 것입니다', ja:'* 画像はAIによる再現イメージです', en:'* Images are AI recreations'}[state.lang] : '';
+  const parts = [ai, cr.join(', ')].filter(Boolean);
+  return parts.length ? '\n\n' + parts.join('\n') : '';
 }
 function editorHTML(d, c){
   if(c.kind==='cover') return `<div class="lb">01 · 표지 — 머리말 / 제목 / 부제</div><input type="text" data-f="cover.kicker" value="${esc(d.cover.kicker)}" placeholder="머리말">
@@ -1486,6 +1542,14 @@ $('cards').addEventListener('click', async e=>{
   if(b.dataset.act==='png'){ const blob = await cardBlob(ci); if(blob) downloadBlob(blob, fileName(ci)); }
   if(b.dataset.act==='retitle'){ retitle(b); return; }
   if(b.dataset.act==='pick'){ openPicker(ci, b.closest('.card')); return; }
+  if(b.dataset.act==='recreate'){ const rb = b.closest('.card').querySelector('.rbox'); rb.hidden = !rb.hidden; if(!rb.hidden && !rb.querySelector('[data-rprompt]').value) rb.querySelector('[data-act=rmake]').click(); return; }
+  if(b.dataset.act==='rcopy'){ const ta = b.closest('.rbox').querySelector('[data-rprompt]'); try{ await navigator.clipboard.writeText(ta.value); }catch(e){ ta.select(); document.execCommand('copy'); } setStatus('outStatus','📋 프롬프트를 복사했어요. 힉스필드에 붙여넣으세요.','ok'); return; }
+  if(b.dataset.act==='rmake'){
+    const rb = b.closest('.rbox'), old = b.textContent; b.disabled = true; b.innerHTML = '<span class="spin"></span>쓰는 중…';
+    try{ rb.querySelector('[data-rprompt]').value = await recreatePrompt(ci, rb.querySelector('[data-rstyle]').value); state.recreated[ci] = true; }
+    catch(e){ setStatus('outStatus', e.message, 'err'); }
+    b.disabled = false; b.textContent = old; return;
+  }
   if(b.dataset.act==='fromtext'){
     const card = b.closest('.card'), old = b.textContent; b.disabled = true; b.innerHTML = '<span class="spin"></span>글 읽는 중…';
     try{
@@ -1508,7 +1572,7 @@ function refreshCard(ci){
   redrawCard(ci);
   const p = state.photos[ci]; el.querySelector('.credit').textContent = p && p.credit ? p.credit : '';
   el.querySelectorAll('[data-adj]').forEach(r=>r.value = r.dataset.adj==='z' ? 100 : 0);
-  $('caption').value = $('caption').value.replace(/\n\nPhoto: [^\n]*$/,'') + creditLine();
+  fixCredit();
 }
 function redrawCard(ci){ const el = $('cards').children[ci]; if(el) drawCard(el.querySelector('canvas'), state.lang, ci); }
 $('cards').addEventListener('input', e=>{
@@ -1540,6 +1604,7 @@ const endDrag = ()=>{ if(!drag) return; const el = $('cards').children[drag.ci];
   if(el){ el.querySelector('[data-adj=x]').value = Math.round(a.x*100); el.querySelector('[data-adj=y]').value = Math.round(a.y*100); } drag = null; };
 $('cards').addEventListener('pointerup', endDrag); $('cards').addEventListener('pointercancel', endDrag);
 $('cards').addEventListener('change', e=>{
+  if(e.target.dataset.ailabel!=null){ const ci = +e.target.closest('.card').dataset.ci; state.aiLabel[ci] = e.target.checked; redrawCard(ci); fixCredit(); return; }
   if(e.target.dataset.pq!=null){ state.pq[+e.target.dataset.pq] = e.target.value.trim(); return; }
   if(e.target.dataset.act!=='up' || !e.target.files[0]) return;
   uploadPhoto(+e.target.closest('.card').dataset.ci, e.target.files[0]);
