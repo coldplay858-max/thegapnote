@@ -528,7 +528,7 @@ async function gemini(prompt, opt){
   const parts = [{text:prompt}];
   (opt.images||[]).forEach(im=>parts.push({inline_data:{mime_type:im.mime, data:im.data}}));
   const models = [$('gemModel').value,'gemini-2.5-flash','gemini-2.5-flash-lite','gemini-flash-latest','gemini-flash-lite-latest'].filter((m,i,a)=>a.indexOf(m)===i);
-  const toolSets = opt.tools ? [opt.tools, null] : [null];   // 검색이 막히면 검색 없이 한 번 더
+  const toolSets = opt.tools ? (opt.requireTools ? [opt.tools] : [opt.tools, null]) : [null];   // 검색이 막히면 검색 없이 한 번 더
   let last = '', hit429 = '', searchErr = '';
   for(const tools of toolSets){
     if(!tools && opt.tools) searchErr = searchErr || last;
@@ -557,6 +557,7 @@ async function gemini(prompt, opt){
       continue;                                        // 404(모델 없음)·400(검색 미지원)·500 → 다음 모델
     }
   }
+  if(opt.requireTools){ const e = new Error('SEARCH_BLOCKED'); e.searchErr = searchErr || hit429 || last; throw e; }
   if(hit429) throw new Error('Gemini 무료 사용량이 꽉 찼어요. 1~2분 뒤 다시 눌러 주세요. 계속 이러면 오늘 한도를 다 쓴 거라 내일 다시 쓸 수 있어요.\n(결제 카드를 안 연결했다면 돈은 나가지 않아요)\n<small style="color:#888">구글 메시지: '+esc(hit429.slice(0,160))+'</small>');
   throw new Error('Gemini 오류: '+esc(last.slice(0,200)));
 }
@@ -634,7 +635,14 @@ ${$('visualOnly').checked ? '**사진으로 보여 주기 좋은 이야기만** 
 "score": 공유될 가능성 1~10
 JSON 배열만 출력하고 다른 말은 쓰지 마라.`;
   try{
-    const r = await gemini(prompt, {tools:[{google_search:{}}], json:true, temp:1});
+    let r;
+    try{ r = await gemini(prompt, {tools:[{google_search:{}}], requireTools:true, json:true, temp:1}); }
+    catch(e){
+      if(e.message!=='SEARCH_BLOCKED') throw e;
+      throw new Error('🔒 지금은 구글 검색이 막혀서 <b>실제 있는 이슈를 확인할 수 없어요.</b> 지어낸 이슈가 나오지 않게 멈췄어요.' + searchHelp(e.searchErr) +
+        '\n\n👉 지금 할 수 있는 것: 에펨코리아·네이트판·레딧에서 직접 인기글을 보고 <b>✍️ 내가 본 글 넣기</b>로 넣으세요. (검색 없이도 카드는 만들어져요)');
+    }
+    if(!r.sources || !r.sources.length) throw new Error('검색 결과를 받지 못해서 실제 이슈인지 확인할 수 없어요. 1~2분 뒤 다시 눌러 주세요.');
     let arr = parseJSON(r.text);
     if(!Array.isArray(arr)) arr = arr.items || arr.issues || [];
     arr = arr.filter(x=>x && x.title).sort((a,b)=>(b.score||0)-(a.score||0));
