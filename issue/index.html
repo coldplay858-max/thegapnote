@@ -625,6 +625,8 @@ ${$('visualOnly').checked ? '**사진으로 보여 주기 좋은 이야기만** 
 "country": 나라(국내면 "한국"),
 "source": 보도한 매체나 사이트 이름,
 "url": 원본 기사나 글 주소(정확히 아는 것만, 모르면 빈칸),
+"orig_title": 검색에서 실제로 본 원본 글·기사의 제목 그대로(모르면 빈칸, 지어내지 마라),
+"keywords": 원본 글을 찾기 위한 핵심 단어 2~4개 (한국어, 공백으로 구분, 예: 축의금 5만원 결혼식),
 "search_en": 원본 기사를 구글에서 찾기 위한 영어 검색어(매체 이름 + 핵심 키워드 4~7단어, 예: BBC oldest cat 32nd birthday),
 "has_photo": 원본 기사·게시물에 실제 사진이나 영상이 있으면 true, 레딧 사연처럼 글만 있으면 false,
 "photo_desc": has_photo가 true면 원본 사진에 뭐가 찍혀 있는지 한국어로 짧게(예: 32살 고양이가 케이크 앞에 앉은 사진), false면 빈칸,
@@ -637,13 +639,14 @@ JSON 배열만 출력하고 다른 말은 쓰지 마라.`;
     if(!Array.isArray(arr)) arr = arr.items || arr.issues || [];
     arr = arr.filter(x=>x && x.title).sort((a,b)=>(b.score||0)-(a.score||0));
     if(!arr.length) throw new Error('이슈를 못 찾았어요. 분야를 바꿔서 다시 눌러 주세요.');
+    if(r.noSearch) arr.forEach(x=>x._noSearch = true);
     state.issues = arr; state.findSources = r.sources;
     $('issueList').innerHTML = arr.map((x,i)=>`<div role="button" tabindex="0" class="issue" data-i="${i}">
-      <div class="ptag ${x.has_photo?'yes':'no'}">${x.has_photo?'📷 원본 사진 있음':'📝 글만 있는 사연 → 픽사베이 사진으로'}</div>
+      ${x._noSearch ? '<div class="ptag" style="background:#fff1e6;color:#b45309">⚠️ 검색 없이 AI가 기억으로 고른 것 · 실제 글이 없을 수도 있어요</div><br>' : ''}<div class="ptag ${x.has_photo?'yes':'no'}">${x.has_photo?'📷 원본 사진 있음':'📝 글만 있는 사연 → 픽사베이 사진으로'}</div>
       <span class="ithumbs" data-v="${esc(x.visual||'')}"></span>
       <b>${esc(x.title)}</b><p>${esc(x.summary)}</p>
       <div class="meta">${x.country?'🌍 '+esc(x.country)+' · ':''}${esc(x.source||'')}${x.why?' · 💬 '+esc(x.why):''}</div>
-      <div class="porig">${x.has_photo ? (x.photo_desc?'원본 사진: '+esc(x.photo_desc)+'<br>':'') : '원본 글 보기<br>'}${origLinks(x)}</div></div>`).join('');
+      <div class="porig">${x.orig_title ? '원본 제목: '+esc(x.orig_title)+'<br>' : ''}${x.keywords ? '찾을 단어: <b>'+esc(x.keywords)+'</b><br>' : ''}${x.has_photo ? (x.photo_desc?'원본 사진: '+esc(x.photo_desc)+'<br>':'') : '원본 글 보기<br>'}${origLinks(x)}</div></div>`).join('');
     $('findSources').innerHTML = sourcesHTML(r.sources);
     issueThumbs();
     setStatus('findStatus', `✅ ${arr.length}개 찾았어요. 마음에 드는 걸 누르세요.` + (r.noSearch ? '\n⚠️ 구글 검색이 막혀서 AI가 알고 있는 이슈로 골랐어요. 최신이 아닐 수 있으니 날짜를 꼭 확인하세요.' + searchHelp(r.searchErr) : ''), 'ok');
@@ -655,11 +658,12 @@ $('issueList').addEventListener('click', e=>{
   const b = e.target.closest('.issue'); if(!b) return;
   [...$('issueList').children].forEach(x=>x.classList.toggle('on', x===b));
   const x = state.issues[+b.dataset.i];
-  pick({ title:x.title, summary:x.summary, why:x.why, country:x.country, source:x.source, url:x.url, visual:x.visual, search_en:x.search_en||'', has_photo:!!x.has_photo, photo_desc:x.photo_desc||'', images:[], sources:state.findSources||[] });
+  pick({ title:x.title, summary:x.summary, why:x.why, country:x.country, source:x.source, url:x.url, visual:x.visual, search_en:x.search_en||'', keywords:x.keywords||'', orig_title:x.orig_title||'', has_photo:!!x.has_photo, photo_desc:x.photo_desc||'', images:[], sources:state.findSources||[] });
 });
 
 function origLinks(x){
-  const ko = [x.source, x.title].filter(Boolean).join(' ');
+  const kw = (x.keywords || '').trim();
+  const ko = x.orig_title || kw || [x.source, x.title].filter(Boolean).join(' ');
   const isKr = /한국|대한민국|국내|korea/i.test(x.country||'') || /에펨|fmkorea|네이트|pann|더쿠|theqoo|인스티즈|보배/i.test(x.source||'');
   const en = isKr ? '' : (x.search_en || [x.source, x.visual].filter(Boolean).join(' '));
   const g = q => 'https://www.google.com/search?q='+encodeURIComponent(q);
@@ -669,9 +673,10 @@ function origLinks(x){
   if(en) a.push(`<a class="${a.length?'alt':''}" href="${esc(gi(en))}" target="_blank" rel="noopener">🖼️ 원본 사진 찾기</a>`);
   if(en) a.push(`<a class="alt" href="${esc(g(en))}" target="_blank" rel="noopener">📰 원본 기사 찾기</a>`);
   if(isKr){
-    const t = x.title || '';
-    a.push(`<a class="${a.length?'alt':''}" href="${esc(g(t+' site:fmkorea.com'))}" target="_blank" rel="noopener">에펨코리아에서 찾기</a>`);
-    a.push(`<a class="alt" href="${esc(g(t+' site:pann.nate.com'))}" target="_blank" rel="noopener">네이트판에서 찾기</a>`);
+    const q = kw || x.orig_title || x.title || '';
+    a.push(`<a class="${a.length?'alt':''}" href="https://www.fmkorea.com/search.php?act=IS&is_keyword=${encodeURIComponent(q)}" target="_blank" rel="noopener">에펨코리아에서 찾기</a>`);
+    a.push(`<a class="alt" href="https://pann.nate.com/search/talk?q=${encodeURIComponent(q)}" target="_blank" rel="noopener">네이트판에서 찾기</a>`);
+    a.push(`<a class="alt" href="${esc(g(q+' 커뮤니티'))}" target="_blank" rel="noopener">구글에서 찾기</a>`);
   }
   a.push(`<a class="alt" href="${esc(gi(ko))}" target="_blank" rel="noopener">한국어로 사진 찾기</a>`);
   return a.join('');
