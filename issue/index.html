@@ -723,13 +723,13 @@ $('btnUseMine').onclick = ()=>{
   pick({ title:'', summary:text, url, images:state.shots.map(s=>({mime:s.mime,data:s.data})), mine:true, sources:[] });
 };
 
-function pick(issue){
+function pick(issue, silent){
   state.picked = issue;
   $('picked').classList.add('show');
   $('picked').innerHTML = `<b>선택한 이슈</b><br>${issue.title?esc(issue.title)+'<br>':''}<span style="color:#555">${esc((issue.summary||'').slice(0,140))}${(issue.summary||'').length>140?'…':''}</span>${issue.images&&issue.images.length?`<br>📷 캡처 ${issue.images.length}장`:''}${issue.url?`<br>🔗 ${esc(issue.url)}`:''}${issue.mine ? '' : `<div class="porig">${issue.has_photo?'📷 원본 사진이 있는 이슈예요. 카드는 일단 픽사베이 사진으로 만들어 둘게요.':'📝 원본 글 보기'}<br>${origLinks(issue)}</div>`}`;
   $('btnMake').disabled = false;
   setStatus('makeStatus','이제 아래에서 말투·장수·디자인을 고르고 <b>캐러셀 만들기</b>를 누르세요.');
-  if(matchMedia('(max-width:959px)').matches) $('btnMake').scrollIntoView({behavior:'smooth', block:'center'});
+  if(!silent && matchMedia('(max-width:959px)').matches) $('btnMake').scrollIntoView({behavior:'smooth', block:'center'});
 }
 
 /* ============ 2. 캐러셀 글 만들기 ============ */
@@ -1046,7 +1046,7 @@ async function setPhoto(i, p){
   let img;
   try{ img = await loadPhoto(p.url); }
   catch(e){ if(!p.alt || p.alt===p.url) throw e; img = await loadPhoto(p.alt); }
-  state.photos[i] = { img, url:p.url, credit:p.credit, list:null }; state.adj[i] = null;
+  state.photos[i] = { img, url:p.url, alt:p.alt||'', credit:p.credit, list:null }; state.adj[i] = null;
   if(p.ping) fetch(p.ping).catch(()=>{});
 }
 async function shufflePhoto(i){
@@ -1062,6 +1062,12 @@ async function shufflePhoto(i){
 async function uploadPhoto(i, file){
   const img = await loadImg(URL.createObjectURL(file));
   state.photos[i] = { img, url:'mine', credit:'' }; state.adj[i] = null;
+  try{ // 다른 앱에 다녀와도 남도록 줄인 사본 저장
+    const sc = Math.min(1, 1600/Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth*sc); c.height = Math.round(img.naturalHeight*sc);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    await idbSet('mine_'+i, c.toDataURL('image/jpeg', .88));
+  }catch(e){}
   if(state.recreated[i]) state.aiLabel[i] = true;
   const el = $('cards').children[i]; if(el){ const cb = el.querySelector('[data-ailabel]'); if(cb) cb.checked = !!state.aiLabel[i]; }
   refreshCard(i);
@@ -2096,6 +2102,53 @@ $('btnCopy').onclick = async ()=>{
   catch(e){ $('caption').select(); document.execCommand('copy'); setStatus('outStatus','✅ 캡션을 복사했어요.','ok'); }
 };
 $('caption').addEventListener('input', ()=>{ /* 직접 고친 캡션은 그대로 유지 */ });
+/* ============ 자동 저장 · 이어 하기 ============ */
+function idb(){ return new Promise((res,rej)=>{ const r = indexedDB.open('icm',1); r.onupgradeneeded = ()=>r.result.createObjectStore('kv'); r.onsuccess = ()=>res(r.result); r.onerror = ()=>rej(r.error); }); }
+async function idbSet(k,v){ const db = await idb(); return new Promise((res,rej)=>{ const t = db.transaction('kv','readwrite'); t.objectStore('kv').put(v,k); t.oncomplete = res; t.onerror = ()=>rej(t.error); }); }
+async function idbGet(k){ const db = await idb(); return new Promise((res,rej)=>{ const t = db.transaction('kv','readonly'); const q = t.objectStore('kv').get(k); q.onsuccess = ()=>res(q.result); q.onerror = ()=>rej(q.error); }); }
+let restoring = false;
+function saveSession(){
+  if(restoring || !hasCards()) return;
+  try{
+    const picked = state.picked ? {...state.picked, images:[]} : null;
+    const sess = { v:1, ts:Date.now(), data:state.data, langs:state.langs, lang:state.lang, picked, sources:state.sources,
+      pq:state.pq, pqList:state.pqList, adj:state.adj, aiLabel:state.aiLabel, recreated:state.recreated,
+      photos:state.photos.map(p=>p ? {url:p.url, alt:p.alt||'', credit:p.credit||''} : null),
+      narr:$('narrText').value, caption:$('caption').value, format:FORMAT };
+    store('session', JSON.stringify(sess));
+  }catch(e){}
+}
+setInterval(saveSession, 4000);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') saveSession(); });
+window.addEventListener('pagehide', saveSession);
+['input','change'].forEach(ev=>document.addEventListener(ev, ()=>{ clearTimeout(window._ss); window._ss = setTimeout(saveSession, 800); }));
+async function restoreSession(){
+  const sess = loadJSON('session', null);
+  if(!sess || !sess.data || !sess.data.ko) return;
+  restoring = true;
+  try{
+    Object.assign(state, { data:sess.data, langs:sess.langs||['ko'], lang:sess.lang||'ko', sources:sess.sources||[],
+      pq:sess.pq||[], pqList:sess.pqList||[], aiLabel:sess.aiLabel||[], recreated:sess.recreated||[], photos:[], adj:[] });
+    if(sess.format){ FORMAT = sess.format; applyFormat(); }
+    if(sess.picked) pick(sess.picked, true);
+    for(let i=0;i<(sess.photos||[]).length;i++){
+      const p = sess.photos[i]; if(!p) continue;
+      try{
+        if(p.url==='mine'){ const du = await idbGet('mine_'+i); if(du) state.photos[i] = { img: await loadImg(du), url:'mine', credit:'' }; }
+        else { await setPhoto(i, p); }
+      }catch(e){}
+    }
+    state.adj = sess.adj || [];
+    await doRender(true);
+    if(sess.caption) $('caption').value = sess.caption;
+    if(sess.narr) $('narrText').value = sess.narr;
+    const when = new Date(sess.ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    setStatus('outStatus', `💾 ${when}에 만들던 카드를 그대로 불러왔어요. <button class="btn sm ghost" type="button" id="btnNewStart">🆕 새로 시작</button>`, 'ok');
+    const nb = $('btnNewStart'); if(nb) nb.onclick = ()=>{ if(confirm('지금 카드를 지우고 새로 시작할까요?')){ store('session',''); location.reload(); } };
+  }catch(e){ console.warn(e); }
+  restoring = false;
+}
+setTimeout(restoreSession, 50);
 </script>
 </body>
 </html>
