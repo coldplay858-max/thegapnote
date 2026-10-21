@@ -529,8 +529,9 @@ async function gemini(prompt, opt){
   (opt.images||[]).forEach(im=>parts.push({inline_data:{mime_type:im.mime, data:im.data}}));
   const models = [$('gemModel').value,'gemini-2.5-flash','gemini-2.5-flash-lite','gemini-flash-latest','gemini-flash-lite-latest'].filter((m,i,a)=>a.indexOf(m)===i);
   const toolSets = opt.tools ? [opt.tools, null] : [null];   // 검색이 막히면 검색 없이 한 번 더
-  let last = '', hit429 = '';
+  let last = '', hit429 = '', searchErr = '';
   for(const tools of toolSets){
+    if(!tools && opt.tools) searchErr = searchErr || last;
     for(const m of models){
       const body = { contents:[{role:'user', parts}], generationConfig:{ temperature: opt.temp ?? 0.9 } };
       if(tools) body.tools = tools;
@@ -547,12 +548,12 @@ async function gemini(prompt, opt){
         if(!text){ last = '빈 응답 (안전 필터에 걸렸을 수 있어요)'; continue; }
         const gm = cand.groundingMetadata || {};
         const sources = (gm.groundingChunks||[]).map(c=>c.web).filter(Boolean).map(w=>({title:w.title||w.domain||'출처', uri:w.uri}));
-        return { text, sources, model:m, noSearch: !!opt.tools && !tools };
+        return { text, sources, model:m, noSearch: !!opt.tools && !tools, searchErr };
       }
       last = (j.error && j.error.message) || ('HTTP '+r.status);
       if(r.status===400 && /API key/i.test(last)) throw new Error('Gemini 키가 틀렸어요. aistudio에서 AIza로 시작하는 키를 다시 복사해 넣어 주세요.');
       if(r.status===403) throw new Error('이 키로는 Gemini를 쓸 수 없어요. aistudio.google.com/apikey 에서 새 키를 만들어 주세요.');
-      if(r.status===429){ hit429 = last; continue; }   // 이 모델(또는 검색) 한도 없음 → 다음 모델
+      if(r.status===429){ hit429 = last; if(tools) searchErr = last; continue; }   // 이 모델(또는 검색) 한도 없음 → 다음 모델
       continue;                                        // 404(모델 없음)·400(검색 미지원)·500 → 다음 모델
     }
   }
@@ -572,6 +573,15 @@ const uniqSources = arr => { const seen=new Set(); return (arr||[]).filter(s=>s&
 function sourcesHTML(list){
   list = uniqSources(list); if(!list.length) return '';
   return '검색에 쓴 출처: ' + list.slice(0,8).map(s=>`<a href="${esc(s.uri)}" target="_blank" rel="noopener">${esc(s.title)}</a>`).join(' · ');
+}
+
+function searchHelp(err){
+  err = String(err||'');
+  let why = '';
+  if(/quota|exhaust|limit|429|꽉/i.test(err)) why = '이유: 구글 검색 무료 한도를 다 썼어요. 보통 다음 날 다시 채워져요. 급하면 ✍️ 내가 본 글 넣기로 하세요.';
+  else if(/not supported|tool|grounding|google_search|INVALID_ARGUMENT|400/i.test(err)) why = '이유: 지금 고른 모델이 검색을 못 써요. ⚙️ 설정에서 모델을 <b>Gemini 2.5 Flash</b>로 바꿔 보세요.';
+  else if(/permission|403|denied|billing/i.test(err)) why = '이유: 이 키(프로젝트)는 검색 권한이 없어요. 예전 키로 바꿔 보거나 내일 다시 해 보세요.';
+  return (why ? '\n'+why : '') + (err ? '\n<small style="color:#888">구글 메시지: '+esc(err.slice(0,180))+'</small>' : '');
 }
 
 /* ============ 1-A. 해외 인기 이슈 찾기 ============ */
@@ -633,7 +643,7 @@ JSON 배열만 출력하고 다른 말은 쓰지 마라.`;
       <div class="porig">${x.has_photo ? (x.photo_desc?'원본 사진: '+esc(x.photo_desc)+'<br>':'') : '원본 글 보기<br>'}${origLinks(x)}</div></div>`).join('');
     $('findSources').innerHTML = sourcesHTML(r.sources);
     issueThumbs();
-    setStatus('findStatus', `✅ ${arr.length}개 찾았어요. 마음에 드는 걸 누르세요.` + (r.noSearch ? '\n⚠️ 지금 키로는 구글 검색이 막혀 있어서 AI가 알고 있는 이슈로 골랐어요. 최신이 아닐 수 있으니 날짜를 꼭 확인하세요.' : ''), 'ok');
+    setStatus('findStatus', `✅ ${arr.length}개 찾았어요. 마음에 드는 걸 누르세요.` + (r.noSearch ? '\n⚠️ 구글 검색이 막혀서 AI가 알고 있는 이슈로 골랐어요. 최신이 아닐 수 있으니 날짜를 꼭 확인하세요.' + searchHelp(r.searchErr) : ''), 'ok');
   }catch(e){ setStatus('findStatus', e.message, 'err'); }
   btn.disabled = false; state.busy = false;
 };
