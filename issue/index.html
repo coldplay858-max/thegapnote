@@ -603,7 +603,10 @@ $('btnFind').onclick = async ()=>{
   $('issueList').innerHTML = ''; $('findSources').innerHTML = '';
   const cat = state.cat==='전체 랜덤' ? '분야 상관없이 골고루 섞어서' : `"${state.cat}" 분야 위주로`;
   const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
-  const prompt = `오늘은 ${today}이다. 너는 한국 인스타그램 "해외 이슈" 카드뉴스 계정의 에디터다.
+  const regionRule = REGION==='kr'
+    ? `\n[아주 중요] 이번에는 **한국 국내 이야기만** 골라라. 해외 사건·해외 연예인·레딧 이야기는 하나도 넣지 마라. 8개 모두 country가 "한국"이어야 한다.${/연예/.test(state.cat) ? '\n[연예·셀럽] 한국 연예인·방송·아이돌 관련 커뮤니티 화제글(방송 장면, 미담, 패션, 예능 반응, 공식 발표 등). 열애·사생활·건강·논란 루머처럼 확인 안 된 이야기와 악플성 글은 빼라. 언론에 보도됐거나 공식 확인된 내용만.' : ''}`
+    : REGION==='both' ? '\n[중요] 8개 중 4개는 한국 국내, 4개는 해외 이야기로.' : '';
+  const prompt = `오늘은 ${today}이다. 너는 한국 인스타그램 ${REGION==='kr' ? '"국내 화제·커뮤니티 인기글"' : '"이슈"'} 카드뉴스 계정의 에디터다.${regionRule}
 ${REGION==='kr' ? `구글 검색으로 ${$('period').value} 안에 **한국 온라인 커뮤니티에서 조회수·추천·댓글이 많았던 인기글(사연·썰·화제)**을 찾아라.
 찾을 곳: 에펨코리아(fmkorea.com) 포텐 터짐·베스트, 네이트판(pann.nate.com) 톡커들의 선택·명예의 전당, 그리고 더쿠·인스티즈·보배드림 인기글, 이런 글을 소개한 기사.`
  : REGION==='both' ? `구글 검색으로 ${$('period').value} 안에 해외와 한국 커뮤니티에서 화제가 된 이야기를 반반 섞어 찾아라.
@@ -619,7 +622,7 @@ ${$('visualOnly').checked ? '**사진으로 보여 주기 좋은 이야기만** 
 "title": 한국어 후킹 제목(22자 이내, 결과는 숨기고 궁금하게. 예: "창가 자리 안 비켜줬다가 12만 명이 편든 이유"),
 "summary": 무슨 일인지 사실 위주 2~3문장 (한국어, 내 말로),
 "why": 왜 화제인지 1문장,
-"country": 나라,
+"country": 나라(국내면 "한국"),
 "source": 보도한 매체나 사이트 이름,
 "url": 원본 기사나 글 주소(정확히 아는 것만, 모르면 빈칸),
 "search_en": 원본 기사를 구글에서 찾기 위한 영어 검색어(매체 이름 + 핵심 키워드 4~7단어, 예: BBC oldest cat 32nd birthday),
