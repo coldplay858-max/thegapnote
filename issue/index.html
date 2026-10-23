@@ -775,9 +775,16 @@ $('btnInsta').onclick = async ()=>{
   setStatus('instaStatus','<span class="spin"></span>캡처를 읽고 왜 반응이 좋았는지 분석하는 중… (20~40초)');
   const prompt = `너는 인스타그램 바이럴 분석가이자 에디터다. 첨부한 이미지는 반응이 좋았던 남의 인스타 게시물 캡처다.
 ${$('instaMemo').value.trim() ? '사용자 메모: '+$('instaMemo').value.trim() : ''}
+[먼저 정확히 읽기 - 가장 중요]
+- 첨부 이미지가 여러 장이어도 보통 **게시물 1개**를 화면·캡션 부분으로 나눠 캡처한 것이다. 화면 아래 "더 보기"로 펼친 긴 글은 사진 속 글자가 아니라 **캡션**이다. 캡처 장수를 카드 장수로 착각하지 마라.
+- 게시물 형식을 판단해 post_type에 적어라: "단일 영상(릴스)", "사진 1장", "캐러셀 N장" 중 하나. 화면 위 점(●○○)이나 1/5 같은 표시가 있을 때만 캐러셀이다.
+- 반응 아이콘은 왼쪽부터 순서대로 읽어라: 하트=좋아요, 말풍선=댓글, 화살표 두 개(순환)=리포스트, 종이비행기=공유. 조회수는 숫자가 보일 때만 적고 없으면 쓰지 마라. 숫자를 지어내지 마라.
+- 캡션을 끝까지 읽고 핵심 문장 1~3개를 caption_quote에 **원문 그대로** 옮겨라. 그리고 그 문장이 실제로 뜻하는 바를 caption_meaning에 쉽게 풀어라. (예: "분양 계약을 체결했다" = 그 집을 샀다는 뜻이지 브랜드 광고 계약이 아니다)
+- 사진 속 장소·사람·상황은 보이는 그대로만 판단하라. 추측이면 "추정"이라고 붙여라.
+- 캡션·화면에 없는 사실·금액·날짜·인물을 만들어 내지 마라.
 할 일:
-1) 이 게시물이 무엇에 관한 것인지 사실(주제)만 뽑아라. 원본 문장·제목을 그대로 옮기지 말고 내 말로 요약.
-2) 보이는 반응 숫자(좋아요·댓글·공유·조회)가 있으면 적어라. 안 보이면 빈칸.
+1) 이 게시물이 무엇에 관한 것인지 사실(주제)만 뽑아라. 캡션 내용을 기준으로. 원본 문장·제목을 그대로 옮기지 말고 내 말로 요약.
+2) 보이는 반응 숫자를 아이콘 이름과 함께 적어라 (예: 좋아요 457 · 댓글 18 · 리포스트 35 · 공유 309). 안 보이는 건 빼라.
 3) 왜 반응이 좋았는지 3~5가지 (제목 후킹 방식, 사진의 힘, 감정, 공감 대상 넓이, 저장 가치 등).
 4) 사진이 먹힌 "요소"만 추상적으로 뽑아라: 피사체 종류, 감정·표정, 색감, 구도 스타일. (원본 사진의 구체적 장면·인물·배경을 묘사하지 마라)
 5) 그 요소를 살리되 **원본과 다른 장면·다른 구도·가상의 인물**로 새 사진을 만드는 영어 이미지 프롬프트를 써라 (50~90단어, 4:5 세로, 실제 인물·연예인·로고·글자 금지, 아래쪽은 글자 넣을 여백).
@@ -789,30 +796,32 @@ ${$('instaMemo').value.trim() ? '사용자 메모: '+$('instaMemo').value.trim()
    - audience: 누가 "내 얘기"라고 느끼나, 얼마나 넓은가 (예: 부모 전체 → 넓음)
    - save_reason: 사람들이 저장한 이유 / share_reason: 친구에게 보낸 이유 (예: "너도 봐" 태그)
    - comment_trigger: 댓글을 쓰게 만든 장치
-   - structure: 장별 흐름 (예: 1장 충격 사실 → 2장 근거 → 3장 의외의 디테일 → 4장 생활 적용 → 5장 질문)
+   - structure: 캐러셀이면 장별 흐름 (예: 1장 충격 사실 → 2장 근거 → 3장 의외의 디테일). 단일 영상·사진 1장이면 장별 흐름을 지어내지 말고 "캡션 흐름: 첫 줄 → … → 마무리"로 캡션이 이야기를 푼 순서를 적어라.
    - photo_strategy: 표지 사진이 멈추게 만든 전략 (예: 큰 눈 정면 응시 + 따뜻한 톤 + 얼굴이 화면 70%)
    - caption_strategy: 캡션 첫 줄·길이·마무리 방식
 9) 인스타 검색에 걸리게 할 한국어 키워드 4~6개 (사람들이 실제로 검색할 단어), 해시태그 6~10개.
-10) 같은 공식을 쓰되 원본과 단어가 겹치지 않는 우리 제목 후보 3개.
+10) 같은 공식을 쓰되 원본과 단어가 겹치지 않는 우리 표지 제목 후보 4개. 각 제목은 22자 안팎으로, 사람 이름·숫자·의외의 사실을 한 제목 안에 몰아 넣어 세게. 예: "수지·신세경·지수 같은 단지 이웃 됐다", "한 채 최고 400억, 스타들이 줄줄이 계약한 집". 캡션에 있는 사실만 쓰고, 뜻을 바꾸지 마라.
 JSON 하나만 출력:
-{"topic":"한 줄 주제(내 말로)","summary":"2~3문장 사실 요약(내 말로)","numbers":"예: 좋아요 3.2만 · 댓글 1,204","why":["..."],"hook_pattern":"원본 제목이 쓴 후킹 방식 이름 (예: 결과 숨기기, 숫자 충격)","photo_elements":"예: 아기 얼굴 클로즈업, 정면 응시, 따뜻한 톤","photo_prompt":"영어 프롬프트","visual":"무료 사진 검색어 영어 3~5단어","caution":"주의할 점","search_ko":"...","search_en":"...","region":"kr 또는 world","has_photo":true/false,"formula":{"hook":"","emotion":"","audience":"","save_reason":"","share_reason":"","comment_trigger":"","structure":"","photo_strategy":"","caption_strategy":""},"keywords":["..."],"hashtags":["..."],"our_titles":["...","...","..."]}`;
+{"post_type":"단일 영상(릴스) / 사진 1장 / 캐러셀 N장","caption_quote":["캡션 핵심 문장 원문 그대로"],"caption_meaning":"그 문장이 실제로 뜻하는 것","topic":"한 줄 주제(내 말로)","summary":"2~3문장 사실 요약(내 말로)","numbers":"예: 좋아요 457 · 댓글 18 · 리포스트 35 · 공유 309","why":["..."],"hook_pattern":"원본 제목이 쓴 후킹 방식 이름 (예: 결과 숨기기, 숫자 충격)","photo_elements":"예: 아기 얼굴 클로즈업, 정면 응시, 따뜻한 톤","photo_prompt":"영어 프롬프트","visual":"무료 사진 검색어 영어 3~5단어","caution":"주의할 점","search_ko":"...","search_en":"...","region":"kr 또는 world","has_photo":true/false,"formula":{"hook":"","emotion":"","audience":"","save_reason":"","share_reason":"","comment_trigger":"","structure":"","photo_strategy":"","caption_strategy":""},"keywords":["..."],"hashtags":["..."],"our_titles":["...","...","...","..."]}`;
   try{
-    const r = await gemini(prompt, {json:true, temp:0.6, images: state.instaShots.map(x=>({mime:x.mime, data:x.data}))});
+    const r = await gemini(prompt, {json:true, temp:0.4, images: state.instaShots.map(x=>({mime:x.mime, data:x.data}))});
     const a = parseJSON(r.text);
     state.instaA = a;
     const why = (Array.isArray(a.why)?a.why:[a.why]).filter(Boolean);
     $('instaResult').innerHTML = `<div class="insta-box">
-      <b>📌 주제</b> ${esc(a.topic||'')}<br>${a.numbers?`<b>📊 반응</b> ${esc(a.numbers)}<br>`:''}
+      <b>📌 주제</b> ${esc(a.topic||'')}<br>${a.post_type?`<b>🎞️ 형식</b> ${esc(a.post_type)}<br>`:''}${a.numbers?`<b>📊 반응</b> ${esc(a.numbers)}<br>`:''}
+      ${(Array.isArray(a.caption_quote)?a.caption_quote:[a.caption_quote]).filter(Boolean).length?`<b>📝 캡션 핵심 문장</b><ul>${(Array.isArray(a.caption_quote)?a.caption_quote:[a.caption_quote]).filter(Boolean).map(q=>`<li>"${esc(q)}"</li>`).join('')}</ul>`:''}
+      ${a.caption_meaning?`<b>💡 실제 뜻</b> ${esc(a.caption_meaning)}<br>`:''}
       <b>🔥 왜 먹혔나</b><ul>${why.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>
       ${a.hook_pattern?`<b>🪝 제목 방식</b> ${esc(a.hook_pattern)} → 우리는 다른 문장으로 같은 효과를 내요<br>`:''}
       ${a.photo_elements?`<b>📷 사진이 먹힌 요소</b> ${esc(a.photo_elements)}<br>`:''}
-      ${a.formula ? `<b>🧪 먹힌 공식</b><ul>${[['제목 공식',a.formula.hook],['감정',a.formula.emotion],['공감 대상',a.formula.audience],['저장 이유',a.formula.save_reason],['공유 이유',a.formula.share_reason],['댓글 장치',a.formula.comment_trigger],['장별 흐름',a.formula.structure],['표지 사진 전략',a.formula.photo_strategy],['캡션 전략',a.formula.caption_strategy]].filter(x=>x[1]).map(x=>`<li><b>${x[0]}</b>: ${esc(x[1])}</li>`).join('')}</ul>` : ''}
+      ${a.formula ? `<b>🧪 먹힌 공식</b><ul>${[['제목 공식',a.formula.hook],['감정',a.formula.emotion],['공감 대상',a.formula.audience],['저장 이유',a.formula.save_reason],['공유 이유',a.formula.share_reason],['댓글 장치',a.formula.comment_trigger],[/캐러셀/.test(a.post_type||'')?'장별 흐름':'이야기 흐름',a.formula.structure],['표지 사진 전략',a.formula.photo_strategy],['캡션 전략',a.formula.caption_strategy]].filter(x=>x[1]).map(x=>`<li><b>${x[0]}</b>: ${esc(x[1])}</li>`).join('')}</ul>` : ''}
       ${(a.keywords&&a.keywords.length)?`<b>🔍 검색 키워드</b> ${a.keywords.map(esc).join(' · ')}<br>`:''}
       ${(a.our_titles&&a.our_titles.length)?`<b>✍️ 우리 제목 후보</b><ul>${a.our_titles.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}
       ${a.caution?`<b>⚠️ 주의</b> ${esc(a.caution)}<br>`:''}
       <div class="porig" style="margin-top:6px">${a.search_ko?`<a href="https://www.google.com/search?q=${encodeURIComponent(a.search_ko)}" target="_blank" rel="noopener">🔎 사실 확인 (한국어)</a>`:''}${a.search_en?`<a class="alt" href="https://www.google.com/search?q=${encodeURIComponent(a.search_en)}" target="_blank" rel="noopener">영어로 확인</a>`:''}</div>
     </div>`;
-    pick({ title:a.topic||'', summary:a.summary||'', why:why.join(' / '), country:a.region==='kr'?'한국':'', source:'인스타그램 게시물(주제 참고)', visual:a.visual||'', search_en:a.search_en||'', keywords:a.search_ko||'', has_photo:!!a.has_photo, photo_desc:'', insta:true, coverPrompt:a.photo_prompt||'', formula:a.formula||null, seoKeywords:a.keywords||[], seoTags:a.hashtags||[], ourTitles:a.our_titles||[], images: state.instaShots.map(x=>({mime:x.mime, data:x.data})), sources:[] });
+    pick({ title:a.topic||'', summary:(a.summary||'') + (a.caption_meaning ? ' (캡션 핵심: '+a.caption_meaning+')' : ''), why:why.join(' / '), country:a.region==='kr'?'한국':'', source:'인스타그램 게시물(주제 참고)', visual:a.visual||'', search_en:a.search_en||'', keywords:a.search_ko||'', has_photo:!!a.has_photo, photo_desc:'', insta:true, coverPrompt:a.photo_prompt||'', formula:a.formula||null, seoKeywords:a.keywords||[], seoTags:a.hashtags||[], ourTitles:a.our_titles||[], images: state.instaShots.map(x=>({mime:x.mime, data:x.data})), sources:[] });
     setStatus('instaStatus','✅ 분석 끝! 아래 <b>② 만들기</b>에서 ✨ 만들기를 누르면 우리 스타일로 새로 써요. 표지 재현컷 프롬프트도 미리 넣어 둘게요.','ok');
   }catch(e){ setStatus('instaStatus', e.message, 'err'); }
   btn.disabled = false;
@@ -873,6 +882,8 @@ const TITLE_RULES = `- 표지 제목이 제일 중요하다. 피드에서 0.5초
    ④ 반응 미리보기: "해외 네티즌 난리 난", "댓글 2만 개 달린", "전 세계가 화난"
    ⑤ 정체·비밀: "~의 정체", "아무도 몰랐던 ~", "직원만 아는 ~"
    ⑥ 질문형 도발: "이게 불법이라고?", "이걸 참은 게 맞나?"
+  [제일 센 공식] 사람(이름·직업) + 숫자(금액·나이·개수) + 의외의 사실을 한 제목에 몰아라. 앞부분은 누가/얼마, 뒷부분은 "그래서 무슨 일"이 와야 한다. 제목 안에 "/" 기호는 쓰지 마라. 흐릿한 말("화제", "근황", "관심 집중", "이목")은 금지, 본문에 있는 가장 구체적인 사실로 바꿔라.
+   예: ✗ "스타들이 선택한 고급 주거지" → ✓ "수지·신세경·지수 ==같은 단지 이웃== 됐다" / ✓ "한 채 최고 ==400억==, 스타들이 줄줄이 계약한 집"
   [규칙] 가장 센 단어는 앞 6글자 안에 / 22자 이내 / 설명문·뉴스 헤드라인 말투 금지("~문제", "~논란 발생", "~에 대해") / 감정 단어(소름·충격·눈물)는 최대 1개 / "충격 실화" 같은 뻔한 말 금지.
   [정직] 본문에 없는 내용·거짓·과장 금지. 제목이 던진 궁금증은 본문에서 반드시 풀어라.
   [예시]
@@ -1099,6 +1110,9 @@ async function searchPhotos(q){
   }
   return [];
 }
+function pinUrl(q){ return 'https://www.pinterest.co.kr/search/pins/?q=' + encodeURIComponent((q||'').trim() || 'aesthetic'); }
+document.addEventListener('click', e=>{ const a = e.target.closest && e.target.closest('[data-pin]'); if(!a) return; const qi = a.closest('.card') && a.closest('.card').querySelector('[data-pq]'); if(qi) a.href = pinUrl(qi.value); }, true);
+document.addEventListener('input', e=>{ const qi = e.target.closest && e.target.closest('[data-pq]'); if(!qi) return; const a = qi.closest('.card') && qi.closest('.card').querySelector('[data-pin]'); if(a) a.href = pinUrl(qi.value); });
 function photoQueries(){
   const ko = state.data.ko; if(!ko) return [];
   const q = [ko.cover_photo || (ko.slides[0]&&ko.slides[0].photo)];
@@ -1643,7 +1657,7 @@ async function doRender(rebuild){
       <div class="ed">${editorHTML(d,c)}</div>
       ${photoUI(c) ? `<div class="ed"><label class="lb">사진 검색어 <small>(영어가 더 정확해요 · 바꾸고 🔄 누르기)</small></label><input type="text" data-pq="${ci}" value="${esc(photoQueries()[ci]||'')}"></div>` : ''}
       <div class="ctl">
-        ${photoUI(c) ? `<button class="btn sm accent" type="button" data-act="pick">🖼️ 사진 고르기</button><button class="btn sm ghost" type="button" data-act="fromtext">📝 글 내용으로 찾기</button><button class="btn sm ghost" type="button" data-act="recreate" style="border-color:#c4b5fd;color:#5b21b6">🎨 재현컷 프롬프트</button><button class="btn sm ghost" type="button" data-act="shuffle">🔄 랜덤</button><label class="btn sm ghost" style="margin:0">📷 내 사진 올리기<input type="file" accept="image/*" hidden data-act="up"></label>` : ''}
+        ${photoUI(c) ? `<button class="btn sm accent" type="button" data-act="pick">🖼️ 사진 고르기</button><button class="btn sm ghost" type="button" data-act="fromtext">📝 글 내용으로 찾기</button><button class="btn sm ghost" type="button" data-act="recreate" style="border-color:#c4b5fd;color:#5b21b6">🎨 재현컷 프롬프트</button><button class="btn sm ghost" type="button" data-act="shuffle">🔄 랜덤</button><a class="btn sm ghost" data-pin="${ci}" href="${pinUrl(photoQueries()[ci]||'')}" target="_blank" rel="noopener" style="border-color:#e60023;color:#e60023;text-decoration:none">📌 핀터레스트</a><label class="btn sm ghost" style="margin:0">📷 내 사진 올리기<input type="file" accept="image/*" hidden data-act="up"></label><div class="hint" style="width:100%;font-size:12px;color:#6b7280;margin-top:2px">📌 핀터레스트에서 사진을 길게 눌러 저장 → 📷 내 사진 올리기로 넣어요. 위 검색어를 한글(예: 수지)로 바꾸면 그 단어로 찾아요.</div>` : ''}
         <button class="btn sm" type="button" data-act="png" style="margin-left:auto">⬇️ PNG 저장</button>
       </div>
       <div class="picker" hidden></div>
