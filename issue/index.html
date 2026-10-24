@@ -545,12 +545,26 @@ function applyProfile(){
   if(state.data && state.data.ko){
     if(P.main!=='ko' && state.data[P.main]) state.lang = P.main;
     renderAll(true);
+    ensureMainLang();
   }
+}
+/* 계정 언어가 일본어·영어인데 지금 카드가 한국어뿐이면 바로 번역해서 그 언어로 보여 줘요 */
+async function ensureMainLang(){
+  const ML = $('mainLang').value;
+  if(ML==='ko' || !state.data || !state.data.ko || state.busy) return;
+  if(!state.data[ML]){
+    state.busy = true;
+    setStatus('outStatus','<span class="spin"></span>'+LANG_NAME[ML]+' 계정이라 '+LANG_NAME[ML]+' 카드로 바꾸는 중…');
+    try{ await translateTo([ML]); }finally{ state.busy = false; }
+    if(!state.data[ML]) return;
+    setStatus('outStatus','✅ '+LANG_NAME[ML]+' 카드로 바꿨어요.','ok');
+  }
+  state.lang = ML; $('saveAllLangs').checked = false; renderAll(true);
 }
 function updProfile(k, v){ const P = curP(); P[k] = v; if(k==='handle' && (!P.label || P.label==='기본 계정' || P.label===P._autoLabel)){ P.label = v || '기본 계정'; P._autoLabel = P.label; } saveProfiles(); drawAcctSel(); }
 $('handle').addEventListener('input', ()=>{ updProfile('handle', $('handle').value.trim()); renderAll(); });
 $('brand').addEventListener('input', ()=>{ updProfile('brand', $('brand').value.trim()); renderAll(); });
-$('mainLang').addEventListener('change', ()=>{ updProfile('main', $('mainLang').value); if($('mainLang').value==='ja') $('langJa').checked = true; if($('mainLang').value==='en') $('langEn').checked = true; });
+$('mainLang').addEventListener('change', ()=>{ updProfile('main', $('mainLang').value); if($('mainLang').value==='ja') $('langJa').checked = true; if($('mainLang').value==='en') $('langEn').checked = true; ensureMainLang(); });
 $('acctSel').addEventListener('change', ()=>{ curId = $('acctSel').value; saveProfiles(); applyProfile(); });
 $('acctAdd').onclick = ()=>{
   const label = (prompt('새 계정 이름을 적어 주세요 (예: 일본 계정, kan.ga.ii)') || '').trim(); if(!label) return;
@@ -997,6 +1011,7 @@ ${shapeRule(n, outro, single)}`;
     const ML = $('mainLang').value;
     if(ML!=='ko' && state.data[ML]){ state.lang = ML; $('saveAllLangs').checked = false; renderAll(true); }
     else $('saveAllLangs').checked = true;
+    if(ML!=='ko' && !state.data[ML]){ setStatus('makeStatus','⚠️ '+LANG_NAME[ML]+' 번역이 실패해서 한국어로 보여요. 위 언어 탭이나 계정 언어를 다시 골라 주세요.','err'); btn.disabled = false; state.busy = false; return; }
     setStatus('makeStatus','✅ 완성! 오른쪽(폰은 아래) 카드에서 글을 바로 고칠 수 있어요.' + (state.photoNote ? '\n'+state.photoNote : '') + (r.noSearch ? '\n⚠️ 구글 검색이 막혀서 검색 보강 없이 썼어요. 사실관계를 꼭 확인하세요.' : ''),'ok');
     if(matchMedia('(max-width:959px)').matches) $('cards').scrollIntoView({behavior:'smooth'});
   }catch(e){ setStatus('makeStatus', e.message, 'err'); }
