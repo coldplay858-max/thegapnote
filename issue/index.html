@@ -961,7 +961,7 @@ ${TITLE_RULES}
 ${single ? `[긴 캡션 규칙] 사진 한 장짜리 게시물이라 이야기 전체를 캡션에 풀어 쓴다.
 - 1~2번째 줄: "더 보기"를 누르고 싶게 만드는 후킹 (제목과 다른 문장, 결과는 숨김).
 - 그다음 배경 → 사건 → 반전 → 결과 순서로, 한 줄에 한 문장, 짧게. 문단 사이에는 빈 줄.
-- 12~22줄. 중간중간 문단 앞에 이모지 하나(📍😳💥👉 등), 남발 금지.
+- 12~22줄. 문단 앞 이모지는 **그 문단 내용에 맞는 것**으로 매번 다르게 골라라. 같은 이모지를 두 번 쓰지 마라. (예: 배경·장소 🌎🏠, 돈 💸, 사랑·만남 💘, 이동·여행 🚌✈️, 의심·궁금 🤔, 놀람·반전 😳💥, 슬픔 😢, 화남 😡, 경찰·법 🚨⚖️, AI·기술 🤖📱, 방송·뉴스 📻📺, 결과·귀가 🏁). 문단마다 붙이지 말고 4~6개만.
 - 마지막 부분: ${$('outroType').value==='conclude' ? '한 줄 결론(설교 X)' : '대중에게 던지는 질문 + 고르기 쉬운 선택지 (예: 여러분은 참는다 vs 바로 말한다?)'}
 - 맨 끝 줄: "출처: 매체이름"
 ` : ''}[출력 형식] 아래 JSON 하나만 출력. 다른 말 금지.
@@ -1015,8 +1015,36 @@ function normalize(d, n, outro){
     hashtags:(Array.isArray(d.hashtags)?d.hashtags:String(d.hashtags||'').split(/[\s,]+/)).map(h=>s(h).replace(/^#/,'')).filter(Boolean)
   };
   if(!out.slides.length && n>0) out.slides = [{heading:'', body:'', photo:''}];
-  out.caption = out.caption.replace(/\\n/g,'\n');
+  out.caption = fixEmojis(out.caption.replace(/\\n/g,'\n'));
   return out;
+}
+
+/* 캡션 문단 앞 이모지가 똑같이 반복되면 내용에 맞는 이모지로 바꿔요 */
+const EMO_MAP = [
+  [/AI|인공지능|가상|로봇|딥페이크|챗GPT/,'🤖'],[/틱톡|인스타|유튜브|SNS|계정|팔로워|영상|앱|휴대폰|폰/,'📱'],
+  [/방송|라디오|뉴스|기자|보도|언론/,'📻'],[/경찰|체포|법원|재판|소송|불법|처벌|벌금/,'🚨'],
+  [/버스|비행기|기차|떠나|찾아 나|이동|여행|공항|거리/,'🚌'],[/돈|원|달러|월급|억|만 원|비용|가격|빚|팔아|처분/,'💸'],
+  [/사랑|연애|결혼|만나|그녀|애인|고백|짝사랑/,'💘'],[/충격|알고 보니|사실은|정체|반전|드러났/,'😳'],
+  [/눈물|슬픔|숨졌|사망|잃|아픔|울/,'😢'],[/분노|화가|비난|논란|항의/,'😡'],[/병원|의사|치료|건강|병/,'🏥'],
+  [/아이|아기|엄마|아빠|부모|가족|아들|딸/,'👨‍👩‍👧'],[/학교|학생|선생|시험/,'🏫'],[/동물|강아지|고양이|개|새끼/,'🐾'],
+  [/음식|식당|먹|요리|커피|빵/,'🍽️'],[/집|아파트|이사|분양|계약/,'🏠'],[/도움|구조|도와|시청|지원/,'🙏'],
+  [/결국|마침내|끝내|귀가|돌아/,'🏁'],[/믿|생각|궁금|의심|왜/,'🤔'],[/하지만|그런데|그러나/,'💥']
+];
+function fixEmojis(text){
+  const lines = String(text||'').split('\n');
+  const lead = /^(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s*/u;
+  const heads = lines.map(l=>{ const m = l.match(lead); return m ? m[1] : null; });
+  const cnt = {}; heads.forEach(h=>{ if(h) cnt[h]=(cnt[h]||0)+1; });
+  if(!Object.values(cnt).some(c=>c>=2)) return text;
+  const used = new Set(), seen = new Set();
+  return lines.map((l,i)=>{
+    const h = heads[i]; if(!h) return l;
+    if(cnt[h] < 2 && !seen.has(h)){ seen.add(h); used.add(h); return l; }
+    const body = l.replace(lead,'');
+    const hit = EMO_MAP.find(([re,e])=>re.test(body) && !used.has(e));
+    const e = hit ? hit[1] : ['👉','✔️','➡️','💬','📌','🔎'].find(x=>!used.has(x)) || '👉';
+    used.add(e); return e + ' ' + body;
+  }).join('\n');
 }
 
 /* ============ 제목 다시 뽑기 ============ */
