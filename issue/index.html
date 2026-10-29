@@ -463,7 +463,10 @@ refreshSettings();
 setTimeout(photoHint,0);
 if(!$('geminiKey').value.trim()) $('settingsBox').open = true;
 
-function setStatus(id, msg, cls){ const s=$(id); s.className='status'+(cls?' '+cls:''); s.innerHTML=msg||''; }
+function setStatus(id, msg, cls){ const s=$(id); s.className='status'+(cls?' '+cls:''); s.innerHTML=msg||'';
+  if(msg && /class="spin"/.test(msg)){ if(!s._t0) s._t0 = Date.now(); s.insertAdjacentHTML('beforeend',' <span class="elap" style="color:#888;font-size:.9em"></span>'); }
+  else s._t0 = 0; }
+setInterval(()=>{ document.querySelectorAll('.status .elap').forEach(e=>{ const t0 = e.parentElement._t0; if(t0) e.textContent = '· '+Math.round((Date.now()-t0)/1000)+'초째'; }); }, 1000);
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* 탭 */
@@ -607,19 +610,27 @@ async function gemini(prompt, opt){
   (opt.images||[]).forEach(im=>parts.push({inline_data:{mime_type:im.mime, data:im.data}}));
   const models = [$('gemModel').value,'gemini-2.5-flash','gemini-2.5-flash-lite','gemini-flash-latest','gemini-flash-lite-latest'].filter((m,i,a)=>a.indexOf(m)===i);
   const toolSets = opt.tools ? (opt.requireTools ? [opt.tools] : [opt.tools, null]) : [null];   // 검색이 막히면 검색 없이 한 번 더
-  let last = '', hit429 = '', searchErr = '';
+  let last = '', hit429 = '', searchErr = '', slow = false;
+  const deadline = Date.now() + (opt.budget || (opt.tools ? 150000 : 100000));   // 전체 기다리는 시간 상한 (예전엔 최대 20분까지 기다렸음)
+  outer:
   for(const tools of toolSets){
     if(!tools && opt.tools) searchErr = searchErr || last;
     for(const m of models){
+      const left = deadline - Date.now();
+      if(left < 8000) break outer;
       const body = { contents:[{role:'user', parts}], generationConfig:{ temperature: opt.temp ?? 0.9 } };
+      if(/2\.5-flash(?!-lite)/.test(m)) body.generationConfig.thinkingConfig = { thinkingBudget: opt.think ?? 0 };   // 2.5 Flash는 "생각"을 오래 해서 느림 → 줄임
       if(tools) body.tools = tools;
       else if(opt.json) body.generationConfig.responseMimeType = 'application/json';
       let r, j;
       try{
         r = await fetchTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`,
-          {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)}, 120000);
+          {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)}, Math.min(left, tools ? 75000 : 60000));
         j = await r.json().catch(()=>({}));
-      }catch(e){ last = e.name==='AbortError' ? '응답이 너무 오래 걸렸어요' : '인터넷 연결을 확인해 주세요'; continue; }
+      }catch(e){
+        if(e.name==='AbortError'){ last = '응답이 너무 오래 걸렸어요'; slow = true; if(tools && !opt.requireTools){ searchErr = searchErr || '검색이 너무 느려요'; continue outer; } continue; }   // 검색이 느리면 다른 모델로 또 기다리지 말고 검색 없이 바로
+        last = '인터넷 연결을 확인해 주세요'; continue;
+      }
       if(r.ok){
         const cand = (j.candidates||[])[0] || {};
         const text = ((cand.content&&cand.content.parts)||[]).map(p=>p.text||'').join('');
@@ -636,6 +647,7 @@ async function gemini(prompt, opt){
     }
   }
   if(opt.requireTools){ const e = new Error('SEARCH_BLOCKED'); e.searchErr = searchErr || hit429 || last; throw e; }
+  if(slow && !hit429) throw new Error('구글 AI(Gemini) 서버가 지금 너무 느려서 멈췄어요. 1~2분 뒤 다시 눌러 주세요.\n계속 이러면 ⚙️ 설정에서 모델을 <b>Gemini Flash-Lite (빠름)</b>로 바꾸거나, <b>검색으로 내용 보강</b> 체크를 끄고 해 보세요.');
   if(hit429) throw new Error('Gemini 무료 사용량이 꽉 찼어요. 1~2분 뒤 다시 눌러 주세요. 계속 이러면 오늘 한도를 다 쓴 거라 내일 다시 쓸 수 있어요.\n(결제 카드를 안 연결했다면 돈은 나가지 않아요)\n<small style="color:#888">구글 메시지: '+esc(hit429.slice(0,160))+'</small>');
   throw new Error('Gemini 오류: '+esc(last.slice(0,200)));
 }
@@ -983,7 +995,7 @@ ${shapeRule(n, outro, single)}`;
   try{
     const useTools = $('useSearch').checked ? [{google_search:{}}] : (p.url ? [{url_context:{}}] : null);
     const tools = $('useSearch').checked && p.url ? [{google_search:{}},{url_context:{}}] : useTools;
-    const r = await gemini(prompt, {tools, json:true, images:p.images, temp:0.9});
+    const r = await gemini(prompt, {tools, json:true, images:p.images, temp:0.9, think:512});
     const d = normalize(parseJSON(r.text), n, outro);
     state.data = { ko:d }; state.langs = ['ko']; state.lang = 'ko';
     state.sources = uniqSources([...(p.sources||[]), ...r.sources]);
@@ -1117,7 +1129,7 @@ ${JSON.stringify(src)}`;
 
 /* ============ 사진 ============ */
 function loadImg(src, cors){
-  return new Promise((res,rej)=>{ const i = new Image(); if(cors) i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=()=>rej(new Error('사진을 못 불러왔어요')); i.src=src; });
+  return new Promise((res,rej)=>{ const i = new Image(); const t = setTimeout(()=>{ i.src=''; rej(new Error('사진이 너무 늦게 와요')); }, 15000); if(cors) i.crossOrigin='anonymous'; i.onload=()=>{ clearTimeout(t); res(i); }; i.onerror=()=>{ clearTimeout(t); rej(new Error('사진을 못 불러왔어요')); }; i.src=src; });
 }
 async function searchPhotos(q){
   const srcType = $('photoSrc').value;
